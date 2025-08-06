@@ -1,2 +1,73 @@
-.env
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+osrs-flips
+osrs-flips-bot
 
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+backups/
+
+# Docker volumes
+ollama_data/
+
+# Temporary files
+tmp/
+temp/
+
+# Configuration backups
+config_*.yml
+prompt_*.md
+signals_*.md
+
+# Local development files
+debug
+debug.test
+coverage.out
+
+# Air live reload
+tmp/
+
+
+# python output artifacts, etc
+python/__pycache__
+python/*.pkl
+python/*.md
+python/*.json
+python/*.txt
+
+output

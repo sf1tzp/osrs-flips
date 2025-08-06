@@ -1,104 +1,150 @@
-# OSRS Flipping Analysis - AI Agent Instructions
-
-> Always use the python provided by our VirtualEnv: ~/osrs-flipping/.venv/
-> After activating the venv, always use `uv` to manage packages, etc eg `uv pip install ..., uv run ...`
-
+r# Copilot Instructions for OSRS Flipping Repository
 
 ## Project Overview
-This codebase analyzes Old School RuneScape (OSRS) item prices for trading opportunities using the RuneScape Wiki pricing API. The core architecture revolves around a single `OSRSItemFilter` class that fetches, filters, and analyzes trading data.
 
-## Key Architecture Patterns
+This is a sophisticated Old School RuneScape (OSRS) trading analysis system built in Go, with Python prototyping components. The system analyzes Grand Exchange trading opportunities, provides LLM-powered insights, and delivers notifications via Discord bot.
 
-### Data Flow & Price Semantics
-**Critical**: OSRS pricing terminology is counterintuitive:
-- `sold_price` = price where **sell orders get filled instantly** = what you can **BUY** at
-- `bought_price` = price where **buy orders get filled instantly** = what you can **SELL** at
-- `margin_gp` = `bought_price - sold_price` = potential profit per item
+## Architecture
 
-### Core Class: OSRSItemFilter
-Located in `osrs_filter.py`, this is the single source of truth for all data operations:
+- **Main Application**: `cmd/main.go` - CLI tool for one-time analysis and markdown output
+- **Discord Bot**: `cmd/bot/main.go` - Scheduled Discord notifications
+- **Core Packages**: Modular Go packages in `pkg/` for shared functionality
+- **Python Prototypes**: Experimental/research code in `python/` directory
+- **Configuration**: `config.yml` + `.env` environment variables
+- **Build System**: `justfile` for common commands
 
-```python
-# Standard initialization pattern
-item_filter = OSRSItemFilter(user_agent="learning pandas with osrs - @sf1tzp")
-item_filter.load_data(force_reload=True)  # Always use force_reload for fresh data
-```
+## Critical Domain Knowledge
 
-### Data Loading Workflow
-1. **Base Data**: `load_data()` fetches item mapping + latest prices
-2. **Volume Enrichment**: `load_volume_data(max_items=N)` adds time-series metrics (expensive API calls)
-3. **Filtering**: `apply_filter()` with extensive parameters for trading criteria
-4. **Persistence**: Save/load with pickle format to preserve datetime objects
+### OSRS Trading Model (ESSENTIAL UNDERSTANDING)
 
-### Time-Based Metrics Pattern
-The system calculates metrics across multiple timeframes:
-- **20m, 1h, 24h**: Volume and average prices from 5-minute timeseries data
-- **1w, 1m**: Trend analysis from 24-hour timeseries data
-- **Trends**: `increasing`/`decreasing`/`flat` based on linear regression + 1% threshold
+**Price Terminology** - This is fundamental to all trading logic:
+- **`insta_sell_price`** = Price where **sell orders get filled instantly**
+- **`insta_buy_price`** = Price where **buy orders get filled instantly**
 
-## Development Workflows
+**Trading Strategy**:
+- **Buy orders**: Target the low `insta_sell_price` (instant sell price)
+- **Sell orders**: Target the high `insta_buy_price` (instant buy price)
+- **Profit**: The difference between these two prices (`margin_gp`)
 
-### API Rate Limiting
-- **User-Agent Required**: RuneScape Wiki API requires descriptive User-Agent headers
-- **Built-in Jitter**: `calculate_volume_metrics()` includes random delays (0.3-0.9s)
-- **Batch Processing**: `load_volume_data()` processes items sequentially with progress indicators
+**Key Insight**: This is NOT traditional bid/ask - it's the price at which orders execute immediately vs waiting in queue.
 
-### Data Persistence Strategy
-```python
-# Save filtered results (use pickle to preserve datetimes)
-item_filter.save("filtered_items.pkl", format="pickle")
+### Trading Metrics & Signals
 
-# Load for analysis (separate instance)
-loaded_filter = OSRSItemFilter(user_agent=USER_AGENT)
-loaded_filter.load_from_file("filtered_items.pkl", format="pickle")
-```
+Available metrics include:
+- Volume metrics: `insta_buy_volume_*` / `insta_sell_volume_*` (20m/1h/24h timeframes)
+- Price metrics: `avg_insta_buy_price_*` / `avg_insta_sell_price_*`
+- Trend indicators: `*_trend_1h/24h/1w/1m` ('increasing'/'decreasing'/'flat')
+- Margin metrics: `margin_gp`, `avg_margin_gp_*`
 
-### Filtering Patterns
-Common filter combinations for trading analysis:
-```python
-# Short-term trading
-item_filter.apply_filter(
-    margin_min=500,
-    volume_1h_min=1000,  # Both bought AND sold volume required
-    max_hours_since_update=0.2,  # Recent price updates only
-    sort_by=("margin_gp", "desc")
-)
+Key trading signals:
+- **High Volume Opportunity**: Active two-way trading indicates liquid market
+- **Volume Imbalance**: One-sided pressure suggests price movement
+- **Margin Expansion**: Growing profit margins indicate good entry opportunity
+- **Golden Opportunity**: High margin + high volume + recent data
 
-# Volume-based sorting
-item_filter.apply_filter(sort_by=("bought_volume_1h", "desc"))
-```
+## Code Style & Patterns
 
-## Project-Specific Conventions
+### Go Code Standards
+- Use structured logging (`pkg/logging`)
+- Implement graceful shutdown patterns for long-running services
+- Follow Go naming conventions (PascalCase for exports, camelCase for internals)
+- Use context.Context for cancellation and timeouts
+- Error handling: wrap errors with context using `fmt.Errorf("operation failed: %w", err)`
+- Configuration via structs with yaml tags
 
-### Column Naming Convention
-- Volume metrics: `{bought|sold}_volume_{20m|1h|24h}`
-- Price averages: `avg_{bought|sold}_price_{20m|1h|24h}`
-- Trends: `{bought|sold}_price_trend_{1h|24h|1w|1m}`
+### Package Organization
+- `pkg/config/` - Configuration loading and validation
+- `pkg/osrs/` - OSRS API client and data structures
+- `pkg/llm/` - LLM client and analysis functions
+- `pkg/jobs/` - Core job execution and formatting
+- `pkg/discord/` - Discord bot functionality
+- `pkg/logging/` - Structured logging setup
+- `pkg/scheduler/` - Cron job scheduling
 
-## Integration Points
+### Configuration Management
+- Primary config in `config.yml` with YAML struct tags
+- Sensitive values via environment variables (Discord tokens, API keys)
+- Use `pkg/config` package for loading and validation
+- Support both CLI and container deployment modes
 
-### External Dependencies
-- **Environment**: Uses `.venv` for isolated Python environment ~/osrs-flipping/.venv
+### Data Structures
+- OSRS API responses use precise field names matching API (e.g., `insta_buy_price`, `insta_sell_price`)
+- Time-based data uses Go time.Time with proper JSON marshaling
+- Use typed enums for trend indicators ('increasing', 'decreasing', 'flat')
+- Volume calculations require careful int64 handling for large numbers
 
-- **RuneScape Wiki API**: `https://prices.runescape.wiki/api/v1/osrs/`
-    - `/latest`: Current high/low prices for all items
-    - `/mapping`: Item ID to name/metadata mapping
-    - `/timeseries`: Historical price/volume data (5m, 1h, 6h, 24h intervals)
+## Development Workflow
 
-## Common Debugging Patterns
+### Build & Run Commands (via justfile)
+- `just build` - Build both main and bot binaries + container
+- `just run` - Run main CLI application
+- `just bot` - Run Discord bot locally
+- `just up` - Start containerized services
+- `just down` - Stop containers
+- `just logs` - View container logs
 
-### Data Loading Issues
-- Check User-Agent header configuration
-- Verify API endpoint availability
-- Use `force_reload=True` to clear cached timezone-naive data
+### Testing & Development
+- Go tests use `*_test.go` pattern
+- Python prototypes in `python/` for data exploration
+- Use `go mod tidy` to manage dependencies
+- Container deployments use multi-stage builds
 
-### Volume Data Problems
-- Volume metrics require separate API calls (slow for many calls, but otherwise free to use)
-- Failed fetches are logged but don't break the pipeline
-- Check item_id validity against mapping data
+### File Naming Conventions
+- Go files: `snake_case.go`
+- Test files: `*_test.go`
+- Config files: `config.yml`, `.env`
+- Output files: `output/Quick Flips_YYYY-MM-DD_HH-MM-SS.md`
 
-### Performance Considerations
-- Jitter delays prevent API rate limiting
-- Pickle format preserves complex data types efficiently
+## Key Dependencies & APIs
 
-When working with this codebase, always initialize with proper User-Agent, use force_reload for fresh data, and understand the counterintuitive price semantics for trading analysis.
+### External APIs
+- OSRS API: Real-time trading data (rate limited, requires User-Agent)
+- Ollama/LLM API: Local LLM for analysis (configurable endpoint)
+- Discord API: Bot notifications
+
+### Go Dependencies
+- Configuration: `gopkg.in/yaml.v3`
+- HTTP clients: `net/http` with custom rate limiting
+- Logging: Structured JSON logging for Fluent Bit integration
+- Discord: Discord Go library for bot functionality
+
+### Python Dependencies (Prototyping)
+- `pandas` for data analysis
+- `pickle` for data persistence
+- Custom modules in `python/llm/` and `python/utils/`
+
+## Common Pitfalls & Important Notes
+
+### OSRS API Considerations
+- Respect rate limits (500ms delay between calls, max 3 concurrent)
+- Always include proper User-Agent header
+- Handle stale data (check `max_hours_since_update`)
+- Volume calculations can involve large numbers (use int64)
+
+### Trading Logic
+- Never confuse `insta_buy_price` with traditional "bid" price
+- Margin calculations: `insta_buy_price - insta_sell_price` (profit per unit)
+- Volume trends are more important than absolute volumes
+- Consider multiple timeframes (20m, 1h, 24h) for comprehensive analysis
+
+### Configuration & Deployment
+- Environment variables override config file values
+- Discord tokens must be set via ENV vars, never committed
+- Container deployments require proper health checks
+- Graceful shutdown is critical for scheduled operations
+
+### LLM Integration
+- Prompts are designed for trading analysis context
+- Timeouts are essential (20m default) for LLM calls
+- JSON and text output formats supported
+- Local Ollama deployment preferred for consistency
+
+## Output Formats
+
+The system generates:
+- **Markdown files**: Timestamped trading analysis reports
+- **Discord messages**: Formatted trading opportunities
+- **JSON logs**: Structured logging for monitoring
+- **Console output**: Human-readable CLI results
+
+When working with output formatting, maintain consistency across formats and ensure Discord messages respect character limits and markdown formatting.

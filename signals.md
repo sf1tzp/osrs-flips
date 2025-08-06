@@ -2,33 +2,55 @@
 
 ## Price Terminology (Critical Understanding)
 
-**IMPORTANT**: The OSRS pricing terminology is counterintuitive to normal trading:
+**IMPORTANT**: The OSRS trading model
 
-- **`sold_price`** = Price where **sell orders get filled instantly** = What you can **BUY** at
-- **`bought_price`** = Price where **buy orders get filled instantly** = What you can **SELL** at
-- **`margin_gp`** = `bought_price - sold_price` = Potential profit per item
+- **`insta_sell_price`** = Price where **sell orders get filled instantly**
+- **`insta_buy_price`** = Price where **buy orders get filled instantly**
 
 ### Trading Strategy
-- **Buy orders**: Target the low `sold_price` (instant sell price)
-- **Sell orders**: Target the high `bought_price` (instant buy price)
+- **Buy orders**: Target the low `insta_sell_price` (instant sell price)
+- **Sell orders**: Target the high `insta_buy_price` (instant buy price)
+
 - **Profit**: The difference between these two prices
+
+### background:
+
+**1. The Stock Market - Primarily "Free Pricing" (aka "Market Pricing" or "Price Discovery")**
+
+*   **Free Pricing (Market Pricing):** This is the most accurate description of how the stock market *ideally* works. It means prices are determined by the collective actions of buyers and sellers. There's no central authority setting prices.  The "active" price you see is simply the latest transaction.
+*   **Price Discovery:** This is a process inherent in free pricing. It means the market is constantly figuring out the "true" value of an asset through supply and demand.
+*   **Limit Orders:**  This is important to understand *how* people engage with free pricing in the stock market.
+    *   **Buy Limit Order:**  You set a *minimum* price you're willing to pay for a stock.  It will only execute if the price reaches or falls below that level.
+    *   **Sell Limit Order:** You set a *maximum* price you're willing to accept for a stock. It will only execute if the price reaches or exceeds that level.
+*   **Market Order:** This is an order to buy or sell immediately at the *current* market price.
+
+**2. Old School RuneScape (OSRS) Grand Exchange –  More Complicated: "Auction-Based Pricing" or "Offer-Based Pricing"**
+
+*   **Not Free Pricing:** It’s *not* really free pricing in the true sense. While it has elements of it, it’s heavily influenced by users placing buy and sell *offers*, not just executing trades.
+*   **Auction-Based Pricing / Offer-Based Pricing:** This is a better way to describe the Grand Exchange system. Users post *offers* at prices they're willing to buy or sell at.  The game then matches these offers.
+*   **Buy Offers & Sell Offers:** The key here. People don’t just buy/sell at the current price; they *offer* to buy at a lower price or sell at a higher price.
+*   **Bid/Ask Spread:**  You're essentially seeing the difference between the highest buy offer (the "bid") and the lowest sell offer (the "ask"). The "active" price is often somewhere in the middle of this spread.
+*   **Price Fluctuation:** The active price isn't really fixed; it's constantly shifting based on the most recent offers.
+*   **Influenced by Sentiment:** OSRS prices are also *heavily* affected by player sentiment, scarcity, and trends (e.g., a new quest release).
+
+The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market principles, but the user-offer system creates a unique dynamic.
 
 ---
 
 ## Available Metrics by Timeframe
 
 ### Volume Metrics
-- `bought_volume_20m/1h/24h`: Volume of instant-buy transactions
-- `sold_volume_20m/1h/24h`: Volume of instant-sell transactions
+- `insta_buy_volume_20m/1h/24h`: Volume of instant-buy transactions
+- `insta_sell_volume_20m/1h/24h`: Volume of instant-sell transactions
 
 ### Price Metrics
-- `avg_bought_price_20m/1h/24h`: Average instant-buy price over timeframe
-- `avg_sold_price_20m/1h/24h`: Average instant-sell price over timeframe
+- `avg_insta_buy_price_20m/1h/24h`: Average instant-buy price over timeframe
+- `avg_insta_sell_price_20m/1h/24h`: Average instant-sell price over timeframe
 - `avg_margin_gp_20m/1h/24h`: Average profit margin over timeframe
 
 ### Trend Indicators
-- `bought_price_trend_1h/24h/1w/1m`: Price direction ('increasing'/'decreasing'/'flat')
-- `sold_price_trend_1h/24h/1w/1m`: Price direction ('increasing'/'decreasing'/'flat')
+- `insta_buy_price_trend_1h/24h/1w/1m`: Price direction ('increasing'/'decreasing'/'flat')
+- `insta_sell_price_trend_1h/24h/1w/1m`: Price direction ('increasing'/'decreasing'/'flat')
 
 ---
 
@@ -37,20 +59,20 @@
 ### 1. Volume-Based Signals
 
 #### High Volume Opportunity
-**Signal**: `bought_volume_1h > X AND sold_volume_1h > X`
+**Signal**: `insta_buy_volume_1h > X AND insta_sell_volume_1h > X`
 **Meaning**: Active two-way trading, liquid market
 **Action**: Safe to trade with good fill rates
 **Risk**: Low execution risk
 
 #### Volume Imbalance
-**Signal**: `bought_volume_1h >> sold_volume_1h` OR vice versa
+**Signal**: `insta_buy_volume_1h >> insta_sell_volume_1h` OR vice versa
 **Meaning**: One-sided market pressure
 **Action**:
 - High buy volume = Strong demand, prices may rise
 - High sell volume = Strong supply, prices may fall
 
 #### Low Volume Warning
-**Signal**: `bought_volume_1h < 5 AND sold_volume_1h < 5`
+**Signal**: `insta_buy_volume_1h < 5 AND insta_sell_volume_1h < 5`
 **Meaning**: Illiquid market, few transactions
 **Action**: Avoid or use small quantities
 **Risk**: High execution risk, wide spreads
@@ -78,25 +100,25 @@
 ### 3. Price Trend Signals
 
 #### Bullish Convergence
-**Signal**: `bought_price_trend_1h = 'increasing' AND sold_price_trend_1h = 'increasing'`
+**Signal**: `insta_buy_price_trend_1h = 'increasing' AND insta_sell_price_trend_1h = 'increasing'`
 **Meaning**: Both buy and sell prices rising
 **Action**: Market moving up, but margins may compress
 **Strategy**: Quick flips before margin compression
 
 #### Bearish Convergence
-**Signal**: `bought_price_trend_1h = 'decreasing' AND sold_price_trend_1h = 'decreasing'`
+**Signal**: `insta_buy_price_trend_1h = 'decreasing' AND insta_sell_price_trend_1h = 'decreasing'`
 **Meaning**: Both buy and sell prices falling
 **Action**: Market moving down, but margins may compress
 **Strategy**: Wait for stabilization
 
 #### Margin Expansion Pattern
-**Signal**: `bought_price_trend_1h = 'increasing' AND sold_price_trend_1h = 'flat'`
+**Signal**: `insta_buy_price_trend_1h = 'increasing' AND insta_sell_price_trend_1h = 'flat'`
 **Meaning**: Buy price rising while sell price stable = growing margins
 **Action**: Strong buy signal
 **Confidence**: Very high
 
 #### Margin Compression Pattern
-**Signal**: `bought_price_trend_1h = 'flat' AND sold_price_trend_1h = 'increasing'`
+**Signal**: `insta_buy_price_trend_1h = 'flat' AND insta_sell_price_trend_1h = 'increasing'`
 **Meaning**: Sell price rising while buy price stable = shrinking margins
 **Action**: Avoid or exit positions
 **Risk**: Margins may disappear
@@ -104,7 +126,7 @@
 ### 4. Time-Based Signals
 
 #### Recent Activity Surge
-**Signal**: `bought_volume_20m > bought_volume_1h * 0.5`
+**Signal**: `insta_buy_volume_20m > insta_buy_volume_1h * 0.5`
 **Meaning**: 20min volume is >50% of hourly volume (3x normal rate)
 **Action**: Sudden market interest, investigate news/events
 **Strategy**: Quick reaction trades
@@ -116,7 +138,7 @@
 **Risk**: High slippage risk
 
 #### Cross-Timeframe Trend Alignment
-**Signal**: `bought_price_trend_1h = bought_price_trend_24h = bought_price_trend_1w`
+**Signal**: `insta_buy_price_trend_1h = insta_buy_price_trend_24h = insta_buy_price_trend_1w`
 **Meaning**: Consistent trend across multiple timeframes
 **Action**: High-confidence directional trade
 **Confidence**: Very high
@@ -126,7 +148,7 @@
 #### Golden Opportunity
 **Criteria**:
 - `margin_gp > 1000`
-- `bought_volume_1h > 10 AND sold_volume_1h > 10`
+- `insta_buy_volume_1h > 10 AND insta_sell_volume_1h > 10`
 - `margin_gp > avg_margin_gp_1h * 1.1` (current margin 10% better than average)
 - `max_hours_since_update < 0.5`
 
@@ -135,7 +157,7 @@
 
 #### Risk Warning
 **Criteria**:
-- `bought_volume_1h < 5 OR sold_volume_1h < 5`
+- `insta_buy_volume_1h < 5 OR insta_sell_volume_1h < 5`
 - `margin_gp < avg_margin_gp_24h * 0.8` (current margin 20% worse than average)
 - `max_hours_since_update > 4`
 

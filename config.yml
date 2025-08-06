@@ -1,0 +1,68 @@
+# osrs-flips Configuration
+
+# Discord bot settings
+discord:
+  token: "" # Set via DISCORD_TOKEN environment variable
+  channel_id: "" # Set via DISCORD_CHANNEL_ID environment variable
+  guild_id: "" # Optional, set via DISCORD_GUILD_ID environment variable
+
+# LLM configuration
+llm:
+  base_url: "http://localhost:11434" # Ollama server URL (or configure via LLM_BASE_URL)
+  model: "qwen3:14b" # Model to use for analysis
+  timeout: "20m" # Timeout for LLM requests
+
+# OSRS API configuration
+osrs:
+  user_agent: "" # Set one here or via OSRS_API_USER_AGENT
+  max_concurrent_calls: 3
+  rate_limit_delay_ms: 500
+  volume_data_max_items: 1000
+
+# Logging configuration (structured for Fluent Bit ingestion)
+logging:
+  level: "info" # debug, info, warn, error, fatal
+  format: "json" # json or text
+
+# Trading analysis jobs
+jobs:
+  - name: "💸 ⛫  The  G R A N D  Exchange  ⛫ 💸"
+    description: "Looking for Margins + Recent Volume Trends, up to 3.33M buy limit"
+    enabled: true
+    filters:
+      # pricing api filters
+      margin_pct_min: 4.5 # At least 4.5% margin
+      insta_sell_price_max: 3330000
+      insta_sell_price_min: 8000
+      max_hours_since_update: 1 # time of most recent price
+      sort_by: "margin_gp"
+      sort_desc: true
+      limit: 500 # max items to pass query osrs volume api
+
+      # volume api filters
+      volume_1h_min: 100
+      volume_24h_min: 500
+    output:
+      max_items: 14 # max items to pass into llm
+    model:
+      name: qwen3:14b # Override global model for this job
+      num_ctx: 14000 # Larger context for better analysis
+      timeout: "20m" # Job-specific timeout
+
+# Additional jobs can override different model parameters:
+# - name: "Deep Analysis"
+#   model:
+#     name: qwen3:14b       # Use larger model for complex analysis
+#     num_ctx: 32000        # Even larger context
+#     temperature: 0.9      # Higher creativity
+#     top_p: 0.95          # Broader token selection
+#     timeout: "15m"        # Longer timeout for complex analysis
+
+# Job schedules (cron format with seconds: second minute hour day month weekday)
+schedules:
+  - job_name: "Quick Flips"
+    cron: "0 */90 * * * *" # Every 90 minutes
+    enabled: true
+  # - job_name: "Deep Analysis"
+  #   cron: "0 0 */2 * * *" # Every 2 hours
+  #   enabled: true

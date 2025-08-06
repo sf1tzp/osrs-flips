@@ -1,0 +1,29 @@
+services:
+  osrs-flips-bot:
+    container_name: osrs-flips-bot
+    restart: unless-stopped
+    image: osrs-flips-bot:latest
+
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID:-}
+      - OSRS_API_USER_AGENT=${OSRS_API_USER_AGENT}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://localhost:11434}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+
+    # Mount config files as volumes
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./prompt.md:/app/prompt.md:ro
+      - ./signals.md:/app/signals.md:ro
+      - ./example-output.md:/app/example-output.md:ro
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "pgrep", "osrs-flips-bot"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

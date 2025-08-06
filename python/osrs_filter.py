@@ -714,7 +714,7 @@ class OSRSItemFilter:
             return "No data available. Use load_data() first."
 
         # Select and order the most relevant columns
-        display_columns = [
+        display_columns = [ 'item_id',
             'name', 'margin_gp', 'margin_pct', 'flip_efficiency', 'buy_limit',
             'sold_price', 'bought_price',
             'sold_volume_20m', 'bought_volume_20m',
