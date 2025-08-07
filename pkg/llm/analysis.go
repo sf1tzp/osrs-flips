@@ -111,7 +111,6 @@ type FilteredItemData struct {
 	InstaSellPrice    *int       `json:"insta_sell_price"` // What you can BUY at
 	LastInstaBuyTime  *time.Time `json:"last_insta_buy_time"`
 	LastInstaSellTime *time.Time `json:"last_insta_sell_time"`
-	BuyLimit          int        `json:"buy_limit"`
 
 	// Derived columns (computed after loading)
 	MarginGP  int     `json:"margin_gp"`
@@ -167,7 +166,6 @@ Message: No items available for analysis.`
 		"insta_sell_price",
 		"last_insta_buy_time",
 		"last_insta_sell_time",
-		"buy_limit",
 		"margin_gp",
 		"margin_pct",
 		"insta_buy_volume_20m",
@@ -214,7 +212,6 @@ Message: No items available for analysis.`
 			item.InstaSellPrice,
 			lastBuyTime,
 			lastSellTime,
-			item.BuyLimit,
 			item.MarginGP,
 			item.MarginPct,
 			item.InstaBuyVolume20m,
@@ -274,10 +271,10 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 		ItemID int    `json:"item_id"`
 		Name   string `json:"name"`
 
-		// Prices with clear semantics (GP values)
-		BuyAtPrice  *int `json:"buy_at_price"`  // insta_sell_price - what you pay to buy instantly
-		SellAtPrice *int `json:"sell_at_price"` // insta_buy_price - what you get selling instantly
-		BuyLimit    int  `json:"buy_limit"`
+		// Prices using OSRS terminology (GP values)
+		InstaBuyPrice  *int `json:"insta_buy_price"`  // Price where buy orders get filled instantly
+		InstaSellPrice *int `json:"insta_sell_price"` // Price where sell orders get filled instantly
+		BuyLimit       int  `json:"buy_limit"`
 
 		// Profit metrics (GP values)
 		MarginGP  int     `json:"margin_gp"`
@@ -303,36 +300,36 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 		trendSignals := make(map[string]*string)
 		lastUpdated := make(map[string]interface{})
 
-		// Add volume data with clear labels (transaction counts)
+		// Add volume data with OSRS terminology (transaction counts)
 		if item.InstaBuyVolume20m != nil && item.InstaSellVolume20m != nil {
 			volumeMetrics["transactions_20m"] = map[string]float64{
-				"buy_orders":  *item.InstaBuyVolume20m,
-				"sell_orders": *item.InstaSellVolume20m,
-				"total":       *item.InstaBuyVolume20m + *item.InstaSellVolume20m,
+				"insta_buy_volume":  *item.InstaBuyVolume20m,
+				"insta_sell_volume": *item.InstaSellVolume20m,
+				"total":             *item.InstaBuyVolume20m + *item.InstaSellVolume20m,
 			}
 		}
 
 		if item.InstaBuyVolume1h != nil && item.InstaSellVolume1h != nil {
 			volumeMetrics["transactions_1h"] = map[string]float64{
-				"buy_orders":  *item.InstaBuyVolume1h,
-				"sell_orders": *item.InstaSellVolume1h,
-				"total":       *item.InstaBuyVolume1h + *item.InstaSellVolume1h,
+				"insta_buy_volume":  *item.InstaBuyVolume1h,
+				"insta_sell_volume": *item.InstaSellVolume1h,
+				"total":             *item.InstaBuyVolume1h + *item.InstaSellVolume1h,
 			}
 		}
 
 		if item.InstaBuyVolume24h != nil && item.InstaSellVolume24h != nil {
 			volumeMetrics["transactions_24h"] = map[string]float64{
-				"buy_orders":  *item.InstaBuyVolume24h,
-				"sell_orders": *item.InstaSellVolume24h,
-				"total":       *item.InstaBuyVolume24h + *item.InstaSellVolume24h,
+				"insta_buy_volume":  *item.InstaBuyVolume24h,
+				"insta_sell_volume": *item.InstaSellVolume24h,
+				"total":             *item.InstaBuyVolume24h + *item.InstaSellVolume24h,
 			}
 		}
 
-		// Add price averages (GP values)
+		// Add price averages using OSRS terminology (GP values)
 		if item.AvgInstaBuyPrice20m != nil && item.AvgInstaSellPrice20m != nil {
 			priceAverages["avg_prices_20m"] = map[string]float64{
-				"avg_sell_at_price": *item.AvgInstaBuyPrice20m,  // what you get selling
-				"avg_buy_at_price":  *item.AvgInstaSellPrice20m, // what you pay buying
+				"avg_insta_buy_price":  *item.AvgInstaBuyPrice20m,
+				"avg_insta_sell_price": *item.AvgInstaSellPrice20m,
 			}
 			if item.AvgMarginGP20m != nil {
 				priceAverages["avg_prices_20m"].(map[string]float64)["avg_margin_gp"] = *item.AvgMarginGP20m
@@ -341,8 +338,8 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 
 		if item.AvgInstaBuyPrice1h != nil && item.AvgInstaSellPrice1h != nil {
 			priceAverages["avg_prices_1h"] = map[string]float64{
-				"avg_sell_at_price": *item.AvgInstaBuyPrice1h,  // what you get selling
-				"avg_buy_at_price":  *item.AvgInstaSellPrice1h, // what you pay buying
+				"avg_insta_buy_price":  *item.AvgInstaBuyPrice1h,
+				"avg_insta_sell_price": *item.AvgInstaSellPrice1h,
 			}
 			if item.AvgMarginGP1h != nil {
 				priceAverages["avg_prices_1h"].(map[string]float64)["avg_margin_gp"] = *item.AvgMarginGP1h
@@ -351,60 +348,60 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 
 		if item.AvgInstaBuyPrice24h != nil && item.AvgInstaSellPrice24h != nil {
 			priceAverages["avg_prices_24h"] = map[string]float64{
-				"avg_sell_at_price": *item.AvgInstaBuyPrice24h,  // what you get selling
-				"avg_buy_at_price":  *item.AvgInstaSellPrice24h, // what you pay buying
+				"avg_insta_buy_price":  *item.AvgInstaBuyPrice24h,
+				"avg_insta_sell_price": *item.AvgInstaSellPrice24h,
 			}
 			if item.AvgMarginGP24h != nil {
 				priceAverages["avg_prices_24h"].(map[string]float64)["avg_margin_gp"] = *item.AvgMarginGP24h
 			}
 		}
 
-		// Trend signals with clear timeframes
+		// Trend signals using exact OSRS field names
 		if item.InstaBuyPriceTrend1h != nil {
-			trendSignals["sell_price_trend_1h"] = item.InstaBuyPriceTrend1h // price you get selling
+			trendSignals["insta_buy_price_trend_1h"] = item.InstaBuyPriceTrend1h
 		}
 		if item.InstaSellPriceTrend1h != nil {
-			trendSignals["buy_price_trend_1h"] = item.InstaSellPriceTrend1h // price you pay buying
+			trendSignals["insta_sell_price_trend_1h"] = item.InstaSellPriceTrend1h
 		}
 		if item.InstaBuyPriceTrend24h != nil {
-			trendSignals["sell_price_trend_24h"] = item.InstaBuyPriceTrend24h
+			trendSignals["insta_buy_price_trend_24h"] = item.InstaBuyPriceTrend24h
 		}
 		if item.InstaSellPriceTrend24h != nil {
-			trendSignals["buy_price_trend_24h"] = item.InstaSellPriceTrend24h
+			trendSignals["insta_sell_price_trend_24h"] = item.InstaSellPriceTrend24h
 		}
 		if item.InstaBuyPriceTrend1w != nil {
-			trendSignals["sell_price_trend_1w"] = item.InstaBuyPriceTrend1w
+			trendSignals["insta_buy_price_trend_1w"] = item.InstaBuyPriceTrend1w
 		}
 		if item.InstaSellPriceTrend1w != nil {
-			trendSignals["buy_price_trend_1w"] = item.InstaSellPriceTrend1w
+			trendSignals["insta_sell_price_trend_1w"] = item.InstaSellPriceTrend1w
 		}
 		if item.InstaBuyPriceTrend1m != nil {
-			trendSignals["sell_price_trend_1m"] = item.InstaBuyPriceTrend1m
+			trendSignals["insta_buy_price_trend_1m"] = item.InstaBuyPriceTrend1m
 		}
 		if item.InstaSellPriceTrend1m != nil {
-			trendSignals["buy_price_trend_1m"] = item.InstaSellPriceTrend1m
+			trendSignals["insta_sell_price_trend_1m"] = item.InstaSellPriceTrend1m
 		}
 
-		// Last updated timestamps
+		// Last updated timestamps using OSRS field names
 		if item.LastInstaBuyTime != nil {
-			lastUpdated["sell_price_updated"] = item.LastInstaBuyTime.Format(time.RFC3339) // when sell price was last updated
+			lastUpdated["last_insta_buy_time"] = item.LastInstaBuyTime.Format(time.RFC3339)
 		}
 		if item.LastInstaSellTime != nil {
-			lastUpdated["buy_price_updated"] = item.LastInstaSellTime.Format(time.RFC3339) // when buy price was last updated
+			lastUpdated["last_insta_sell_time"] = item.LastInstaSellTime.Format(time.RFC3339)
 		}
 
 		opportunities[i] = TradingOpportunity{
-			ItemID:        item.ItemID,
-			Name:          item.Name,
-			BuyAtPrice:    item.InstaSellPrice, // Clear semantic mapping
-			SellAtPrice:   item.InstaBuyPrice,  // Clear semantic mapping
-			BuyLimit:      item.BuyLimit,
-			MarginGP:      item.MarginGP,
-			MarginPct:     item.MarginPct,
-			VolumeMetrics: volumeMetrics,
-			PriceAverages: priceAverages,
-			TrendSignals:  trendSignals,
-			LastUpdated:   lastUpdated,
+			ItemID:         item.ItemID,
+			Name:           item.Name,
+			InstaBuyPrice:  item.InstaBuyPrice,
+			InstaSellPrice: item.InstaSellPrice,
+			BuyLimit:       item.BuyLimit,
+			MarginGP:       item.MarginGP,
+			MarginPct:      item.MarginPct,
+			VolumeMetrics:  volumeMetrics,
+			PriceAverages:  priceAverages,
+			TrendSignals:   trendSignals,
+			LastUpdated:    lastUpdated,
 		}
 	}
 
@@ -412,9 +409,10 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 		"trading_opportunities": opportunities,
 		"context": map[string]string{
 			"volume_note": "Volume metrics show transaction counts, not GP values",
-			"price_note":  "Buy at 'buy_at_price' (insta_sell_price), sell at 'sell_at_price' (insta_buy_price)",
+			"price_note":  "insta_buy_price = price where buy orders get filled instantly; insta_sell_price = price where sell orders get filled instantly",
 			"trend_note":  "Trends: 'increasing', 'decreasing', or 'flat'",
-			"margin_calc": "margin_gp = sell_at_price - buy_at_price",
+			"margin_calc": "margin_gp = insta_buy_price - insta_sell_price (buy low at insta_sell_price, sell high at insta_buy_price)",
+			"strategy":    "Buy orders target insta_sell_price (low); Sell orders target insta_buy_price (high)",
 		},
 	}
 

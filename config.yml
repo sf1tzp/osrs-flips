@@ -26,12 +26,12 @@ logging:
 
 # Trading analysis jobs
 jobs:
-  - name: "💸 ⛫  The  G R A N D  Exchange  ⛫ 💸"
+  - name: "Tempting Trades"
     description: "Looking for Margins + Recent Volume Trends, up to 3.33M buy limit"
     enabled: true
     filters:
       # pricing api filters
-      margin_pct_min: 4.5 # At least 4.5% margin
+      margin_pct_min: 5.5 # At least 4.5% margin
       insta_sell_price_max: 3330000
       insta_sell_price_min: 8000
       max_hours_since_update: 1 # time of most recent price
@@ -40,10 +40,10 @@ jobs:
       limit: 500 # max items to pass query osrs volume api
 
       # volume api filters
-      volume_1h_min: 100
+      volume_1h_min: 60
       volume_24h_min: 500
     output:
-      max_items: 14 # max items to pass into llm
+      max_items: 25 # max items to pass into llm
     model:
       name: qwen3:14b # Override global model for this job
       num_ctx: 14000 # Larger context for better analysis
@@ -60,7 +60,7 @@ jobs:
 
 # Job schedules (cron format with seconds: second minute hour day month weekday)
 schedules:
-  - job_name: "Quick Flips"
+  - job_name: "Tempting Trades"
     cron: "0 */90 * * * *" # Every 90 minutes
     enabled: true
   # - job_name: "Deep Analysis"

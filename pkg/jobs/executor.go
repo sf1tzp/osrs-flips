@@ -47,7 +47,7 @@ func NewExecutor(cfg *config.Config, logger *logging.Logger, analyzer *osrs.Anal
 // loadSystemPrompt loads and combines prompt.md, signals.md, and example-output.md
 // Following the notebook pattern of combining all prompt components
 func (e *Executor) loadSystemPrompt() error {
-	var promptContent, signalsContent, exampleContent string
+	var promptContent, signalsContent, exampleGoodContent, exampleBadContentTable, exampleBadContentNoLinks string
 
 	// Load prompt.md
 	if data, err := os.ReadFile("prompt.md"); err != nil {
@@ -72,29 +72,63 @@ func (e *Executor) loadSystemPrompt() error {
 	}
 
 	// Load example-output.md
-	if data, err := os.ReadFile("example-output.md"); err != nil {
+	if data, err := os.ReadFile("a-good-example-output.md"); err != nil {
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to read example-output.md: %w", err)
+			return fmt.Errorf("failed to read a-good-example-output.md: %w", err)
 		}
-		e.logger.WithComponent("job_executor").Warn("example-output.md not found, using default example")
-		exampleContent = getDefaultExample()
+		e.logger.WithComponent("job_executor").Warn("a-good-example-output.md not found, using default example")
+		exampleGoodContent = getDefaultExample()
 	} else {
-		exampleContent = string(data)
+		exampleGoodContent = string(data)
+	}
+
+	// Load a-bad-example-output.md
+	if data, err := os.ReadFile("a-bad-example-output-table.md"); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to read a-bad-example-output-table.md: %w", err)
+		}
+		e.logger.WithComponent("job_executor").Warn("a-bad-example-output-table.md not found, using default example")
+		exampleBadContentTable = getDefaultExample()
+	} else {
+		exampleBadContentTable = string(data)
+	}
+
+	// Load a-bad-example-output.md
+	if data, err := os.ReadFile("a-bad-example-output-no-links.md"); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to read a-bad-example-output-no-links.md: %w", err)
+		}
+		e.logger.WithComponent("job_executor").Warn("a-bad-example-output-no-links.md not found, using default example")
+		exampleBadContentNoLinks = getDefaultExample()
+	} else {
+		exampleBadContentNoLinks = string(data)
 	}
 
 	// Combine prompts following the notebook pattern:
 	// main prompt + signals section + example section
 	e.systemPrompt = fmt.Sprintf(`%s
 
+## Signals
 <signals>
 %s
 </signals>
 
-<example grade="a great example">
+## Examples
+<good-example reason="Wiki links and concise, expressive formatting. Includes the latest pricing as 'Strategy' and provides a timeframe estimate">
 %s
-</example>`, promptContent, signalsContent, exampleContent)
+</good-example>
+
+<bad-example reason="no wiki links, and unecessary '---' separators">
+%s
+</bad-example>
+
+<bad-example reason="the output should be a list of markdown stanzas, not a table">
+%s
+</bad-example>
+`, promptContent, signalsContent, exampleGoodContent, exampleBadContentNoLinks, exampleBadContentTable)
 
 	e.logger.WithComponent("job_executor").WithField("prompt_length", len(e.systemPrompt)).Info("System prompt loaded successfully")
+	e.logger.WithComponent("job_executor").WithField("prompt", e.systemPrompt).Info("System prompt output")
 
 	return nil
 }

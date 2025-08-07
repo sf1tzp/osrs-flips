@@ -175,31 +175,7 @@ func RemoveThinkingTags(content string) string {
 
 // countTokensForModel provides model-specific token counting
 func countTokensForModel(content string, modelName string) int {
-
-	// TODO: tiktoken has a `tiktoken.EncodingForModel`
-
-	encoding, err := tiktoken.EncodingForModel("gpt2")
-
-	// var encodingName string
-	//
-	// // Choose encoding based on model
-	// switch {
-	// case strings.Contains(strings.ToLower(modelName), "qwen"):
-	// 	// Qwen models typically use cl100k_base or similar
-	// 	encodingName = "cl100k_base"
-	// case strings.Contains(strings.ToLower(modelName), "gemma"):
-	// 	// Gemma models use cl100k_base encoding
-	// 	encodingName = "cl100k_base"
-	// case strings.Contains(strings.ToLower(modelName), "gpt-4"):
-	// 	encodingName = "cl100k_base"
-	// case strings.Contains(strings.ToLower(modelName), "gpt-3.5"):
-	// 	encodingName = "cl100k_base"
-	// default:
-	// 	// Default to cl100k_base which works for most modern models
-	// 	encodingName = "cl100k_base"
-	// }
-	//
-	// encoding, err := tiktoken.GetEncoding(encodingName)
+	encoding, err := tiktoken.GetEncoding("cl100k_base")
 	if err != nil {
 		// Fallback to estimation if tiktoken fails
 		log.Printf("Warning: tiktoken encoding failed for %s, using estimation: %v", "gpt2", err)
