@@ -64,6 +64,7 @@ tmp/
 
 
 # python output artifacts, etc
+__pycache__
 python/__pycache__
 python/*.pkl
 python/*.md
