@@ -77,6 +77,12 @@ func (jr *JobRunner) LoadData(ctx context.Context) error {
 	return jr.executor.osrsAnalyzer.LoadData(ctx, true)
 }
 
+// RefreshData refreshes the OSRS data (for scheduled updates)
+func (jr *JobRunner) RefreshData(ctx context.Context) error {
+	jr.logger.Info("Refreshing OSRS base data")
+	return jr.executor.osrsAnalyzer.LoadData(ctx, true)
+}
+
 // RunJob executes a specific job by name and returns the result
 func (jr *JobRunner) RunJob(ctx context.Context, jobName string) (*JobResult, error) {
 	// Delegate to the executor which has the notebook pattern

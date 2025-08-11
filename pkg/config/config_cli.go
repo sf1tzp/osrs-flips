@@ -5,8 +5,8 @@ import (
 	"os"
 )
 
-// LoadConfigForMain loads configuration for main program (without Discord validation)
-func LoadConfigForMain(configPath string) (*Config, error) {
+// LoadConfigForCLI loads configuration for main program (without Discord validation)
+func LoadConfigForCLI(configPath string) (*Config, error) {
 	// Start with minimal defaults (let YAML override)
 	config := &Config{
 		LLM: LLMConfig{
@@ -54,19 +54,6 @@ func validateMainConfig(config *Config) error {
 
 	if len(config.Jobs) == 0 {
 		return fmt.Errorf("at least one job must be configured")
-	}
-
-	// Validate that at least one job is enabled
-	hasEnabledJob := false
-	for _, job := range config.Jobs {
-		if job.Enabled {
-			hasEnabledJob = true
-			break
-		}
-	}
-
-	if !hasEnabledJob {
-		return fmt.Errorf("at least one job must be enabled")
 	}
 
 	return nil

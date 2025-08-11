@@ -254,9 +254,9 @@ func (a *Analyzer) ApplySecondaryFilter(items []ItemData, opts FilterOptions, ve
 
 	// Apply sorting
 	if opts.SortBy != "" {
-		a.sortItems(filtered, "insta_buy_volume_20m", opts.SortDesc)
+		a.sortItems(filtered, opts.SortBy, opts.SortDesc)
 		if verbose {
-			fmt.Printf("Sorted by insta_buy_volume_20m (desc=%t)\n", opts.SortDesc)
+			fmt.Printf("Sorted by %s (desc=%t)\n", opts.SortBy, opts.SortDesc)
 		}
 	}
 

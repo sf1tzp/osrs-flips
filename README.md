@@ -84,6 +84,12 @@ volumes:
   - ./example-output.md:/app/example-output.md:ro
 ```
 
+#### User Prompt
+
+We format OSRS trading data into a structured JSON array, aiming to provide concise context for the LLM without repeating __too many__ characters. It's much smaller than a completely flat table structure converted to json, allowing us to provide dozens of items to the LLM for comparison (I only have 12GB VRAM lol). The simple structure of the data is handled well by smaller models such as qwen3:4b.
+
+For an example of our current prompt data structure see [example-context-data.json](./example-context-data.json).
+
 ---
 
 Whether you're interested in OSRS trading, exploring AI-assisted development workflows, or learning about production Go services, this project offers a comprehensive example of how these technologies can work together to create something both useful and educational.

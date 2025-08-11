@@ -15,7 +15,7 @@ import (
 	"osrs-flipping/pkg/scheduler"
 )
 
-const VERSION = "0.0.2"
+const VERSION = "0.0.4"
 
 func main() {
 	// Load configuration with Discord validation
@@ -95,9 +95,9 @@ func main() {
 		"discord_enabled":  discordBot != nil,
 	}).Info("osrs-flips fully initialized")
 
-	// Execute all jobs once on startup
-	logger.WithComponent("main").Info("Running initial job execution")
-	sched.ExecuteAllJobs()
+	// // Execute all jobs once on startup
+	// logger.WithComponent("main").Info("Running initial job execution")
+	// sched.ExecuteAllJobs()
 
 	// Set up graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -154,13 +154,16 @@ func (be *BotExecutor) ExecuteJob(ctx context.Context, job config.JobConfig) err
 	} else {
 		be.logger.WithComponent("bot").WithError(result.Error).Error("Job failed")
 
+		if result.Error == nil {
+			result.Error = fmt.Errorf("job %s failed with unknown error", job.Name)
+		}
+
 		// Send error message to Discord instead of success message
 		if be.discordBot != nil {
 			if err := be.discordBot.SendError(job.Name, result.Error); err != nil {
 				be.logger.WithDiscord().WithError(err).Error("Failed to send error message to Discord")
 			}
 		}
-		return result.Error
 	}
 
 	// Send to Discord if available
@@ -173,7 +176,7 @@ func (be *BotExecutor) ExecuteJob(ctx context.Context, job config.JobConfig) err
 			discordMessage = fmt.Sprintf("📊 **%s**\n\nNo items met the filtering criteria. Consider adjusting your filters for more results.", result.JobName)
 		}
 
-		footerText := fmt.Sprintf("Generated with %s using data sourced from the [oldschool runescape wiki real time prices api](https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices)", *result.JobConfig.Model.Name)
+		footerText := fmt.Sprintf("Generated with %s using data from https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices", *result.JobConfig.Model.Name)
 
 		if err := be.discordBot.SendLongAnalysis(result.JobName, discordMessage, footerText, result.ItemsFound); err != nil {
 			be.logger.WithDiscord().WithError(err).Error("Failed to send job results to Discord")
@@ -182,7 +185,9 @@ func (be *BotExecutor) ExecuteJob(ctx context.Context, job config.JobConfig) err
 	}
 
 	return nil
-} // ExecuteAllJobs runs all enabled jobs
+}
+
+// ExecuteAllJobs runs all enabled jobs
 func (be *BotExecutor) ExecuteAllJobs(ctx context.Context) error {
 	results, err := be.jobRunner.RunAllJobs(ctx)
 	if err != nil {
@@ -219,7 +224,7 @@ func (be *BotExecutor) ExecuteAllJobs(ctx context.Context) error {
 				discordMessage = fmt.Sprintf("📊 **%s**\n\nNo items met the filtering criteria. Consider adjusting your filters for more results.", result.JobName)
 			}
 
-			footerText := fmt.Sprintf("Generated with %s using data sourced from the [oldschool runescape wiki real time prices api](https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices)", *result.JobConfig.Model.Name)
+			footerText := fmt.Sprintf("Generated with %s using data from https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices", *result.JobConfig.Model.Name)
 			if err := be.discordBot.SendLongAnalysis(result.JobName, discordMessage, footerText, result.ItemsFound); err != nil {
 				be.logger.WithDiscord().WithError(err).Error("Failed to send job results to Discord")
 				return err

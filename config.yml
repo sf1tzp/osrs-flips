@@ -12,11 +12,11 @@ llm:
   model: "qwen3:14b" # Model to use for analysis
   timeout: "20m" # Timeout for LLM requests
 
-# OSRS API configuration
+# OSRS Wiki Real Time Prices API configuration
 osrs:
   user_agent: "" # Set one here or via OSRS_API_USER_AGENT
   max_concurrent_calls: 3
-  rate_limit_delay_ms: 500
+  rate_limit_delay_ms: 1000 # Please respect this amazing *free* community resource if you use this program
   volume_data_max_items: 1000
 
 # Logging configuration (structured for Fluent Bit ingestion)
@@ -26,43 +26,84 @@ logging:
 
 # Trading analysis jobs
 jobs:
-  - name: "Tempting Trades"
-    description: "Looking for Margins + Recent Volume Trends, up to 3.33M buy limit"
+  - name: "Tempting Trades Under 1M"
+    description: "Looking for Margins + Recent Volume Trends, up to a 1M buy limit"
     enabled: true
     filters:
       # pricing api filters
-      margin_pct_min: 5.5 # At least 4.5% margin
-      insta_sell_price_max: 3330000
+      margin_gp_min: 1000
+      margin_pct_min: 3.5 # At least 3.5% margin
       insta_sell_price_min: 8000
-      max_hours_since_update: 1 # time of most recent price
+      insta_sell_price_max: 1000000
+
+      # Sort before fetching volume information
+      sort_by: "margin_gp"
+      sort_desc: true
+      limit: 500 # max items to query osrs volume api for
+
+      # volume api filters
+      volume_1h_min: 20
+    output:
+      max_items: 50 # max items to pass into llm
+    model:
+      name: qwen3:4b # Override global model for this job
+      num_ctx: 30000 # Larger context for better analysis
+      timeout: "20m" # Job-specific timeout
+
+  - name: "1M+ Wonders"
+    description: "Looking for Margins + Recent Volume Trends, up to 10M buy limit"
+    enabled: true
+    filters:
+      # pricing api filters
+      margin_gp_min: 30000
+      margin_pct_min: 4.5
+      insta_sell_price_min: 1000000
+      insta_sell_price_max: 10000000
+      max_hours_since_update: 2
       sort_by: "margin_gp"
       sort_desc: true
       limit: 500 # max items to pass query osrs volume api
 
       # volume api filters
-      volume_1h_min: 60
-      volume_24h_min: 500
+      volume_24h_min: 30
     output:
-      max_items: 25 # max items to pass into llm
+      max_items: 50 # max items to pass into llm
     model:
-      name: qwen3:14b # Override global model for this job
-      num_ctx: 14000 # Larger context for better analysis
+      name: qwen3:4b # Override global model for this job
+      num_ctx: 30000 # Larger context for better analysis
+      # temperature: 0.0
       timeout: "20m" # Job-specific timeout
 
-# Additional jobs can override different model parameters:
-# - name: "Deep Analysis"
-#   model:
-#     name: qwen3:14b       # Use larger model for complex analysis
-#     num_ctx: 32000        # Even larger context
-#     temperature: 0.9      # Higher creativity
-#     top_p: 0.95          # Broader token selection
-#     timeout: "15m"        # Longer timeout for complex analysis
+  - name: "Daily Trade Limited"
+    description: "Looking for Margins + Recent Volume Trends, up to 10M buy limit"
+    enabled: false
+    filters:
+      # pricing api filters
+      buy_limit_max: 100 # These refer to the in-game daily trade limit for an item
+      buy_limit_min: 20
+
+      margin_gp_min: 4000
+      margin_pct_min: 4.0
+      max_hours_since_update: 1
+      sort_by: "margin_gp"
+      sort_desc: true
+      limit: 500 # max items to pass query osrs volume api
+
+      # volume api filters
+      volume_24h_min: 100
+    output:
+      max_items: 50 # max items to pass into llm
+    model:
+      name: qwen3:4b # Override global model for this job
+      num_ctx: 30000 # Larger context for better analysis
+      # temperature: 0.0
+      timeout: "20m" # Job-specific timeout
 
 # Job schedules (cron format with seconds: second minute hour day month weekday)
 schedules:
-  - job_name: "Tempting Trades"
-    cron: "0 */90 * * * *" # Every 90 minutes
+  - job_name: "Tempting Trades Under 1M"
+    cron: "0 0 * * * *" # at min 0
     enabled: true
-  # - job_name: "Deep Analysis"
-  #   cron: "0 0 */2 * * *" # Every 2 hours
-  #   enabled: true
+  - job_name: "1M+ Wonders"
+    cron: "0 30 * * * * " # at min 30
+    enabled: true

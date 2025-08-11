@@ -45,7 +45,6 @@ func NewExecutor(cfg *config.Config, logger *logging.Logger, analyzer *osrs.Anal
 }
 
 // loadSystemPrompt loads and combines prompt.md, signals.md, and example-output.md
-// Following the notebook pattern of combining all prompt components
 func (e *Executor) loadSystemPrompt() error {
 	var promptContent, signalsContent, exampleGoodContent, exampleBadContentTable, exampleBadContentNoLinks string
 
@@ -118,7 +117,7 @@ func (e *Executor) loadSystemPrompt() error {
 %s
 </good-example>
 
-<bad-example reason="no wiki links, and unecessary '---' separators">
+<bad-example reason="no wiki links, no 'Strategy' section with latest pricing, and unecessary '---' separators between items">
 %s
 </bad-example>
 
@@ -127,8 +126,8 @@ func (e *Executor) loadSystemPrompt() error {
 </bad-example>
 `, promptContent, signalsContent, exampleGoodContent, exampleBadContentNoLinks, exampleBadContentTable)
 
-	e.logger.WithComponent("job_executor").WithField("prompt_length", len(e.systemPrompt)).Info("System prompt loaded successfully")
-	e.logger.WithComponent("job_executor").WithField("prompt", e.systemPrompt).Info("System prompt output")
+	// e.logger.WithComponent("job_executor").WithField("prompt_length", len(e.systemPrompt)).Info("System prompt loaded successfully")
+	// e.logger.WithComponent("job_executor").WithField("prompt", e.systemPrompt).Info("System prompt output")
 
 	return nil
 }
@@ -136,6 +135,18 @@ func (e *Executor) loadSystemPrompt() error {
 // ExecuteJobWithResult executes a job and returns a JobResult (used by JobRunner)
 func (e *Executor) ExecuteJobWithResult(ctx context.Context, jobName string) (*JobResult, error) {
 	startTime := time.Now()
+
+	// Refresh OSRS data before each job execution to ensure fresh timestamps
+	refreshCtx, refreshCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer refreshCancel()
+
+	if err := e.osrsAnalyzer.LoadData(refreshCtx, true); err != nil {
+		e.logger.WithFields(map[string]interface{}{
+			"job_name": jobName,
+			"error":    err.Error(),
+		}).Warn("Failed to refresh OSRS data, using existing data")
+		// Continue with existing data rather than failing the job
+	}
 
 	// Find the job configuration
 	var jobConfig config.JobConfig
@@ -399,6 +410,7 @@ func (e *Executor) generateAnalysis(ctx context.Context, items []osrs.ItemData, 
 	defer cancel()
 
 	// Format items for LLM input - this is our "user_prompt" equivalent
+	// Todo: Attach this file to a discord message
 	userPrompt := llm.FormatItemsForAnalysisV2(items, len(items))
 
 	// Temporarily log to verify volume data is now included

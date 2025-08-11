@@ -1,0 +1,55 @@
+[
+  {
+    "item_id": 24219,
+    "name": "Swift blade",
+    "last_sell_price": 4673005,
+    "last_buy_price": 4452028,
+    "margin_gp": 220977,
+    "margin_pct": "4.96",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "6.00",
+        "at_target_sell_price": "2.00"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "0.00",
+        "at_target_sell_price": "2.00"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "160.00",
+        "at_target_sell_price": "80.00"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "184260.25",
+        "target_buy_price": "4488744.75",
+        "target_sell_price": "4673005.00"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "4673005.00",
+        "target_buy_price": "0.00",
+        "target_sell_price": "4673005.00"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "105542.75",
+        "target_buy_price": "4682303.75",
+        "target_sell_price": "4787846.50"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp decrease",
+      "target_buy_price_trend_1w": "decreasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "flat",
+      "target_sell_price_trend_1month": "sharp decrease",
+      "target_sell_price_trend_1w": "decreasing",
+      "target_sell_price_trend_24h": "increasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-08-10T19:49:07Z",
+      "last_target_sell_price_time": "2025-08-10T19:51:17Z"
+    }
+  }
+]

@@ -6,6 +6,7 @@
 *.dylib
 osrs-flips
 osrs-flips-bot
+main
 
 # Test binary, built with `go test -c`
 *.test

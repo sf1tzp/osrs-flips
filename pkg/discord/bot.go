@@ -192,15 +192,15 @@ func (b *Bot) sendLongMessage(content string) (*discordgo.Message, error) {
 // SendLongAnalysis sends long trading analysis messages, splitting them if necessary
 // This method is optimized for trading analysis content and preserves full content
 func (b *Bot) SendLongAnalysis(jobName, analysis string, footerText string, itemCount int) error {
-	const embedDescLimit = 4096 // Discord embed description limit
+	// const embedDescLimit = 4096 // Discord embed description limit
 
-	// If analysis fits in embed, use the existing method
-	if len(analysis) <= embedDescLimit {
-		return b.SendTradingAnalysis(jobName, analysis, itemCount)
-	}
+	// // If analysis fits in embed, use the existing method
+	// if len(analysis) <= embedDescLimit {
+	// 	return b.SendTradingAnalysis(jobName, analysis, itemCount)
+	// }
 
 	// For very long analysis, split and send as multiple messages
-	splitter := llm.NewTextSplitter(1900) // Leave buffer for Discord
+	splitter := llm.NewTextSplitter(3800) // Leave buffer for Discord
 	chunks := splitter.SplitTextWithParts(analysis)
 
 	for i, chunk := range chunks {
@@ -212,10 +212,6 @@ func (b *Bot) SendLongAnalysis(jobName, analysis string, footerText string, item
 				Title:       fmt.Sprintf(" %s", jobName),
 				Description: chunk,
 				Color:       0x00ff00, // Green
-				Timestamp:   time.Now().Format(time.RFC3339),
-				Footer: &discordgo.MessageEmbedFooter{
-					Text: footerText,
-				},
 				Author: &discordgo.MessageEmbedAuthor{
 					Name:    "osrs-flips 🎯",
 					IconURL: "https://oldschool.runescape.wiki/images/c/c9/Coins_10000.png",
@@ -227,7 +223,13 @@ func (b *Bot) SendLongAnalysis(jobName, analysis string, footerText string, item
 				Title:       fmt.Sprintf(" %s (continued)", jobName),
 				Description: chunk,
 				Color:       0x00ff00, // Green
-				Timestamp:   time.Now().Format(time.RFC3339),
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: footerText,
+				},
+				Author: &discordgo.MessageEmbedAuthor{
+					Name:    "osrs-flips 🎯",
+					IconURL: "https://oldschool.runescape.wiki/images/c/c9/Coins_10000.png",
+				},
 			}
 		}
 

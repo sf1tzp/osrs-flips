@@ -233,13 +233,14 @@ func (a *Analyzer) processTimeseriesData(data5m, data24h map[string]interface{})
 	return metrics
 }
 
-// calculate5mMetrics processes 5-minute data for 20m and 1h windows
+// calculate5mMetrics processes 5-minute data for 20m, 1h, and 24h windows
 func (a *Analyzer) calculate5mMetrics(dataSlice []interface{}, metrics VolumeMetrics) VolumeMetrics {
 	now := time.Now().Unix()
 
 	// Time windows
-	window20m := now - (20 * 60) // 20 minutes ago
-	window1h := now - (60 * 60)  // 1 hour ago
+	window20m := now - (20 * 60)      // 20 minutes ago
+	window1h := now - (60 * 60)       // 1 hour ago
+	window24h := now - (24 * 60 * 60) // 25 hour ago
 
 	var (
 		// 20-minute aggregates
@@ -250,8 +251,15 @@ func (a *Analyzer) calculate5mMetrics(dataSlice []interface{}, metrics VolumeMet
 		instaBuy1h, instaSell1h       []float64
 		instaBuyVol1h, instaSellVol1h float64
 
+		// 24-hour aggregates
+		instaBuy24h, instaSell24h       []float64
+		instaBuyVol24h, instaSellVol24h float64
+
 		// For 1h trend analysis - collect timestamps and prices
 		timestamps1h, instaBuyPrices1h, instaSellPrices1h []float64
+
+		// For 24h trend analysis - collect timestamps and prices
+		timestamps24h, instaBuyPrices24h, instaSellPrices24h []float64
 	)
 
 	for _, item := range dataSlice {
@@ -299,6 +307,20 @@ func (a *Analyzer) calculate5mMetrics(dataSlice []interface{}, metrics VolumeMet
 				instaBuyVol1h += highVol
 				instaSellVol1h += lowVol
 			}
+
+			if timestamp >= window24h {
+				if avgHigh > 0 {
+					instaBuy24h = append(instaBuy24h, avgHigh)
+					timestamps24h = append(timestamps24h, float64(timestamp))
+					instaBuyPrices24h = append(instaBuyPrices24h, avgHigh)
+				}
+				if avgLow > 0 {
+					instaSell24h = append(instaSell24h, avgLow)
+					instaSellPrices24h = append(instaSellPrices24h, avgLow)
+				}
+				instaBuyVol24h += highVol
+				instaSellVol24h += lowVol
+			}
 		}
 	}
 
@@ -323,6 +345,16 @@ func (a *Analyzer) calculate5mMetrics(dataSlice []interface{}, metrics VolumeMet
 	metrics.InstaSellVolume1h = instaSellVol1h
 	metrics.AvgMarginGP1h = metrics.AvgInstaBuyPrice1h - metrics.AvgInstaSellPrice1h
 
+	if len(instaBuy24h) > 0 {
+		metrics.AvgInstaBuyPrice24h = average(instaBuy24h)
+	}
+	if len(instaSell24h) > 0 {
+		metrics.AvgInstaSellPrice24h = average(instaSell24h)
+	}
+	metrics.InstaBuyVolume24h = instaBuyVol24h
+	metrics.InstaSellVolume24h = instaSellVol24h
+	metrics.AvgMarginGP24h = metrics.AvgInstaBuyPrice24h - metrics.AvgInstaSellPrice24h
+
 	// Calculate 1h trends using linear regression
 	if len(instaBuyPrices1h) >= 3 {
 		metrics.InstaBuyPriceTrend1h = calculateTrend(timestamps1h, instaBuyPrices1h)
@@ -336,57 +368,47 @@ func (a *Analyzer) calculate5mMetrics(dataSlice []interface{}, metrics VolumeMet
 		metrics.InstaSellPriceTrend1h = "flat"
 	}
 
+	// Calculate 24h trends using linear regression
+	if len(instaBuyPrices24h) >= 3 {
+		metrics.InstaBuyPriceTrend24h = calculateTrend(timestamps24h, instaBuyPrices24h)
+	} else {
+		metrics.InstaBuyPriceTrend24h = "flat"
+	}
+
+	if len(instaSellPrices24h) >= 3 {
+		metrics.InstaSellPriceTrend24h = calculateTrend(timestamps24h, instaSellPrices24h)
+	} else {
+		metrics.InstaSellPriceTrend24h = "flat"
+	}
+
 	return metrics
 }
 
-// calculate24hMetrics processes 24h data for daily metrics and trend analysis
+// calculate24hMetrics processes 24h data for long-term week and month trend analysis
 func (a *Analyzer) calculate24hMetrics(dataSlice []interface{}, metrics VolumeMetrics) VolumeMetrics {
 	now := time.Now().Unix()
 	window1w := now - (7 * 24 * 60 * 60)  // 1 week ago
 	window1m := now - (30 * 24 * 60 * 60) // 1 month ago
 
 	var (
-		instaBuy24h, instaSell24h       []float64
-		instaBuyVol24h, instaSellVol24h float64
-
 		// For trend analysis - separate arrays for different time periods
-		timestamps24h, instaBuyPrices24h, instaSellPrices24h []float64
-		timestamps1w, instaBuyPrices1w, instaSellPrices1w    []float64
-		timestamps1m, instaBuyPrices1m, instaSellPrices1m    []float64
+		timestamps1w, instaBuyPrices1w, instaSellPrices1w []float64
+		timestamps1m, instaBuyPrices1m, instaSellPrices1m []float64
 	)
 
 	for _, item := range dataSlice {
 		if dataPoint, ok := item.(map[string]interface{}); ok {
 			timestamp := int64(dataPoint["timestamp"].(float64))
 
-			var avgHigh, avgLow, highVol, lowVol float64
+			var avgHigh, avgLow float64
 			if val, exists := dataPoint["avgHighPrice"]; exists && val != nil {
 				avgHigh = val.(float64)
 			}
 			if val, exists := dataPoint["avgLowPrice"]; exists && val != nil {
 				avgLow = val.(float64)
 			}
-			if val, exists := dataPoint["highPriceVolume"]; exists && val != nil {
-				highVol = val.(float64)
-			}
-			if val, exists := dataPoint["lowPriceVolume"]; exists && val != nil {
-				lowVol = val.(float64)
-			}
 
-			// For 24h data, we want ALL the data points since they represent daily aggregates
-			// The API returns one point per day for the past year, so we should use all of them
-			if avgHigh > 0 {
-				instaBuy24h = append(instaBuy24h, avgHigh)
-				timestamps24h = append(timestamps24h, float64(timestamp))
-				instaBuyPrices24h = append(instaBuyPrices24h, avgHigh)
-			}
-			if avgLow > 0 {
-				instaSell24h = append(instaSell24h, avgLow)
-				instaSellPrices24h = append(instaSellPrices24h, avgLow)
-			}
-			// Sum ALL the volume data to get total volume
-			instaBuyVol24h += highVol
-			instaSellVol24h += lowVol // 1-week window for weekly trend analysis
+			// 1-week window for weekly trend analysis
 			if timestamp >= window1w {
 				if avgHigh > 0 {
 					timestamps1w = append(timestamps1w, float64(timestamp))
@@ -408,28 +430,6 @@ func (a *Analyzer) calculate24hMetrics(dataSlice []interface{}, metrics VolumeMe
 				}
 			}
 		}
-	}
-
-	// Calculate 24h averages
-	if len(instaBuy24h) > 0 {
-		metrics.AvgInstaBuyPrice24h = average(instaBuy24h)
-	}
-	if len(instaSell24h) > 0 {
-		metrics.AvgInstaSellPrice24h = average(instaSell24h)
-	}
-	metrics.InstaBuyVolume24h = instaBuyVol24h
-	metrics.InstaSellVolume24h = instaSellVol24h
-	metrics.AvgMarginGP24h = metrics.AvgInstaBuyPrice24h - metrics.AvgInstaSellPrice24h // Calculate 24h trends using linear regression
-	if len(instaBuyPrices24h) >= 3 {
-		metrics.InstaBuyPriceTrend24h = calculateTrend(timestamps24h, instaBuyPrices24h)
-	} else {
-		metrics.InstaBuyPriceTrend24h = "flat"
-	}
-
-	if len(instaSellPrices24h) >= 3 {
-		metrics.InstaSellPriceTrend24h = calculateTrend(timestamps24h, instaSellPrices24h)
-	} else {
-		metrics.InstaSellPriceTrend24h = "flat"
 	}
 
 	// Calculate 1w trends using linear regression
@@ -603,6 +603,13 @@ func calculateTrend(x, y []float64) string {
 	// Less than 1% change is considered flat (matching Python threshold)
 	if math.Abs(pctChange) < 1.0 {
 		return "flat"
+	} else if math.Abs(pctChange) >= 10.0 {
+		// Sharp moves: 10% or more
+		if slope > 0 {
+			return "sharp increase"
+		} else {
+			return "sharp decrease"
+		}
 	} else if slope > 0 {
 		return "increasing"
 	} else {

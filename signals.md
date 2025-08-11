@@ -1,19 +1,6 @@
 # OSRS Trading Signals Documentation
 
-## Price Terminology (Critical Understanding)
-
-**IMPORTANT**: The OSRS trading model
-
-- **`insta_sell_price`** = Price where **sell orders get filled instantly**
-- **`insta_buy_price`** = Price where **buy orders get filled instantly**
-
-### Trading Strategy
-- **Buy orders**: Target the low `insta_sell_price` (instant sell price)
-- **Sell orders**: Target the high `insta_buy_price` (instant buy price)
-
-- **Profit**: The difference between these two prices
-
-### background:
+## Background:
 
 **1. The Stock Market - Primarily "Free Pricing" (aka "Market Pricing" or "Price Discovery")**
 
@@ -40,17 +27,19 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 ## Available Metrics by Timeframe
 
 ### Volume Metrics
-- `insta_buy_volume_20m/1h/24h`: Volume of instant-buy transactions
-- `insta_sell_volume_20m/1h/24h`: Volume of instant-sell transactions
+- `sell_volume_20m/1h/24h`: Volume of transactions at the target sell price
+- `buy_volume_20m/1h/24h`: Volume of transactions at the target buy price
 
 ### Price Metrics
-- `avg_insta_buy_price_20m/1h/24h`: Average instant-buy price over timeframe
-- `avg_insta_sell_price_20m/1h/24h`: Average instant-sell price over timeframe
+- `avg_sell_price_20m/1h/24h`: Average target sell price over timeframe
+- `avg_buy_price_20m/1h/24h`: Average target buy price over timeframe
 - `avg_margin_gp_20m/1h/24h`: Average profit margin over timeframe
 
+
 ### Trend Indicators
-- `insta_buy_price_trend_1h/24h/1w/1m`: Price direction ('increasing'/'decreasing'/'flat')
-- `insta_sell_price_trend_1h/24h/1w/1m`: Price direction ('increasing'/'decreasing'/'flat')
+> Note the longer 1 week and 1 month timeframes for larger awareness
+- `sell_price_trend_1h/24h/1w/1m`: Target sell price direction ('increasing'/'decreasing'/'flat')
+- `buy_price_trend_1h/24h/1w/1m`: Target buy price direction ('increasing'/'decreasing'/'flat')
 
 ---
 
@@ -59,20 +48,20 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 ### 1. Volume-Based Signals
 
 #### High Volume Opportunity
-**Signal**: `insta_buy_volume_1h > X AND insta_sell_volume_1h > X`
+**Signal**: `sell_volume_1h > X AND buy_volume_1h > X`
 **Meaning**: Active two-way trading, liquid market
 **Action**: Safe to trade with good fill rates
 **Risk**: Low execution risk
 
 #### Volume Imbalance
-**Signal**: `insta_buy_volume_1h >> insta_sell_volume_1h` OR vice versa
+**Signal**: `sell_volume_1h >> buy_volume_1h` OR vice versa
 **Meaning**: One-sided market pressure
 **Action**:
 - High buy volume = Strong demand, prices may rise
 - High sell volume = Strong supply, prices may fall
 
 #### Low Volume Warning
-**Signal**: `insta_buy_volume_1h < 5 AND insta_sell_volume_1h < 5`
+**Signal**: `sell_volume_1h < 5 AND buy_volume_1h < 5`
 **Meaning**: Illiquid market, few transactions
 **Action**: Avoid or use small quantities
 **Risk**: High execution risk, wide spreads
@@ -100,25 +89,25 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 ### 3. Price Trend Signals
 
 #### Bullish Convergence
-**Signal**: `insta_buy_price_trend_1h = 'increasing' AND insta_sell_price_trend_1h = 'increasing'`
+**Signal**: `sell_price_trend_1h = 'increasing' AND buy_price_trend_1h = 'increasing'`
 **Meaning**: Both buy and sell prices rising
 **Action**: Market moving up, but margins may compress
 **Strategy**: Quick flips before margin compression
 
 #### Bearish Convergence
-**Signal**: `insta_buy_price_trend_1h = 'decreasing' AND insta_sell_price_trend_1h = 'decreasing'`
+**Signal**: `sell_price_trend_1h = 'decreasing' AND buy_price_trend_1h = 'decreasing'`
 **Meaning**: Both buy and sell prices falling
 **Action**: Market moving down, but margins may compress
 **Strategy**: Wait for stabilization
 
 #### Margin Expansion Pattern
-**Signal**: `insta_buy_price_trend_1h = 'increasing' AND insta_sell_price_trend_1h = 'flat'`
+**Signal**: `sell_price_trend_1h = 'increasing' AND buy_price_trend_1h = 'flat'`
 **Meaning**: Buy price rising while sell price stable = growing margins
 **Action**: Strong buy signal
 **Confidence**: Very high
 
 #### Margin Compression Pattern
-**Signal**: `insta_buy_price_trend_1h = 'flat' AND insta_sell_price_trend_1h = 'increasing'`
+**Signal**: `sell_price_trend_1h = 'flat' AND buy_price_trend_1h = 'increasing'`
 **Meaning**: Sell price rising while buy price stable = shrinking margins
 **Action**: Avoid or exit positions
 **Risk**: Margins may disappear
@@ -126,7 +115,7 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 ### 4. Time-Based Signals
 
 #### Recent Activity Surge
-**Signal**: `insta_buy_volume_20m > insta_buy_volume_1h * 0.5`
+**Signal**: `sell_volume_20m > sell_volume_1h * 0.5`
 **Meaning**: 20min volume is >50% of hourly volume (3x normal rate)
 **Action**: Sudden market interest, investigate news/events
 **Strategy**: Quick reaction trades
@@ -138,7 +127,7 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 **Risk**: High slippage risk
 
 #### Cross-Timeframe Trend Alignment
-**Signal**: `insta_buy_price_trend_1h = insta_buy_price_trend_24h = insta_buy_price_trend_1w`
+**Signal**: `sell_price_trend_1h = sell_price_trend_24h = sell_price_trend_1w`
 **Meaning**: Consistent trend across multiple timeframes
 **Action**: High-confidence directional trade
 **Confidence**: Very high
@@ -148,7 +137,7 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 #### Golden Opportunity
 **Criteria**:
 - `margin_gp > 1000`
-- `insta_buy_volume_1h > 10 AND insta_sell_volume_1h > 10`
+- `sell_volume_1h > 10 AND buy_volume_1h > 10`
 - `margin_gp > avg_margin_gp_1h * 1.1` (current margin 10% better than average)
 - `max_hours_since_update < 0.5`
 
@@ -157,7 +146,7 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 
 #### Risk Warning
 **Criteria**:
-- `insta_buy_volume_1h < 5 OR insta_sell_volume_1h < 5`
+- `sell_volume_1h < 5 OR buy_volume_1h < 5`
 - `margin_gp < avg_margin_gp_24h * 0.8` (current margin 20% worse than average)
 - `max_hours_since_update > 4`
 

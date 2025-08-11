@@ -20,7 +20,7 @@
    - Volume: 12 insta-sold/30 insta-bought in 20m, 84 insta-sold/112 insta-bought in 1h
    - Timeframe: 15-30 minutes
    - Strategy: Buy at 427,000, sell at 449,302
-   - Rational: Highest liquidity with 196 total 1h transactions! 5.22% margin with massive volume ensures quick execution. Buy limit of 8 allows scaling.
+   - Rational: Highest liquidity with 196 total 1h transactions! 5.22% margin with massive volume ensures quick execution.
 
 4. **[Accursed sceptre (au)](https://prices.runescape.wiki/osrs/item/27676) - SOLID OPPORTUNITY** ⭐⭐
    - Current Margin: 197,684 GP (4.75%) - 23m ago
@@ -44,7 +44,7 @@
    - Volume: 7 insta-sold/48 insta-bought in 20m, 32 insta-sold/87 insta-bought in 1h
    - Timeframe: 30-60 minutes
    - Strategy: Buy at 855,248, sell at 885,877
-   - Rational: 3.58% margin with massive buy pressure (87 vs 32) and increasing trends on both buy/sell prices. High buy limit of 70 allows significant scaling.
+   - Rational: 3.58% margin with massive buy pressure (87 vs 32) and increasing trends on both buy/sell prices.
 
 💰 **Moderate Opportunities (Meeting 2.1% Minimum)**
 
@@ -54,7 +54,7 @@
    - Volume: 10 insta-sold/18 insta-bought in 20m, 39 insta-sold/58 insta-bought in 1h
    - Timeframe: 45 minutes to 1.5 hours
    - Strategy: Buy at 1,345,356, sell at 1,390,000
-   - Rational: Consistent 3.32% margin with good volume balance. Buy limit of 15 provides decent scaling potential.
+   - Rational: Consistent 3.32% margin with good volume balance.
 
 8. **[Eclipse moon tassets](https://prices.runescape.wiki/osrs/item/29007) - BALANCED TRADE** ⭐⭐
    - Current Margin: 31,263 GP (3.78%) - 10m ago
@@ -68,5 +68,4 @@
 - **Fresh Data**: All prices updated within last 23 minutes
 - **Volume Leaders**: Occult necklace (196 1h transactions), Obsidian platelegs (119 1h transactions)
 - **Trend Signals**: Multiple items showing buy pressure exceeding sell pressure
-- **Risk Management**: Start with Occult necklace for highest liquidity, scale up with proven execution
-- **Remember**: Buy at the insta-sold_price, sell at the insta-bought_price - opposite of typical trading terminology! 🎮
+

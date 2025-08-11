@@ -1,82 +1,60 @@
-Tempting Trades
-Here's a detailed analysis of the top trading opportunities based on profit margins, volume, and trend signals:
+#### 1. Fremennik Kilt (Item ID: 23246)
 
+    Margin: 468,093 GP (10.33%)
+
+Volume: 20 buys, 9 sells (1h) → Buy > Sell (strong demand).Trends:
+
+    1h, 1w, 24h: Buy/Sell prices increasing.
+
+Action: High margin + strong upward trend. Ideal for short-to-medium term trading. Monitor 24h trend to avoid long-term declines.
 ---
 
-Top Opportunities for Profit
-Mixed Hide Boots
+#### 2. Enhanced Crystal Teleport Seed (Item ID: 23959)
 
-    Margin: 14.11%
+    Margin: 180,000 GP (8.11%)
 
-Buy Limit: 0 (unrestricted)Trends:
+Volume: 228 buys, 182 sells (1h) → High liquidity.Trends:
 
-    24h Buy: Increasing (positive demand)
+    1h, 20m: Buy/Sell prices increasing.
 
-1h/1w Buy: Increasing (short- and mid-term growth)Sell Trends: Mixed (24h decreasing, but 1w increasing)Volume: 763,007 buys in 24h (high liquidity)Verdict: Strong candidate for short-term gains due to rising buy trends and unrestricted trading.
-
-    Mixed Hide Top
-        Margin: 15.25% (highest in the list)
-
-Buy Limit: 100Trends:
-
-    24h Buy/Sell: Decreasing (but 1h Buy/Sell: Increasing)
-
-Volume: 997,202 buys in 24h (very high liquidity)Verdict: Highest margin but mixed long-term trends. Consider short-term trading or monitor for trend reversal.
-
-    Calcified Moth
-        Margin: 10.97%
-
-Buy Limit: 100Trends:
-
-    24h Buy/Sell: Increasing (positive long-term growth)
-
-Volume: 1,470,520 buys in 24h (extremely high liquidity)Verdict: Strong long-term play with consistent upward trends and high volume.
-
-    Redwood Sapling
-        Margin: 11.6%
-
-Buy Limit: 100Trends:
-
-    24h Buy: Increasing (positive demand)
-
-Volume: 964,246 buys in 24h (high liquidity)Verdict: Steady upward trend with decent margin. Good for mid-term trading.
-
-    Black D'hide Shield
-        Margin: 12.27%
-
-Buy Limit: 125Trends:
-
-    24h Buy: Flat (but 1h/1w Buy: Increasing)
-
-Sell Trends: Mixed (24h decreasing, but 1w increasing)Volume: 552,759 buys in 24hVerdict: Moderate margin with improving short- and mid-term buy trends. Worth monitoring.
+24h: Trends decreasing (long-term caution).BuyAction: Short-term play due to strong 1h/20m trends. Avoid holding overnight as 24h trend is bearish.
 ---
 
-High-Volume Items with Lower Margins
-Yew Sapling
+#### 3. Karil's Armour Set (Item ID: 12883)
 
-    Margin: 7.10%
+    Margin: 99,938 GP (6.66%)
 
-Volume: 11,954,305 buys in 24h (massive liquidity)Trends: All decreasing (long-term decline)Verdict: High liquidity but not recommended for profit unless volume-based trading is the goal.
+Volume: 12 buys, 5 sells (1h) → Strong buy demand.Trends:
 
-    Onyx Dragon Bolts (e)
-        Margin: 5.08%
+    1h, 20m: Buy/Sell prices increasing.
 
-Volume: 5,678,944 buys in 24hTrends: 24h Buy/Sell: IncreasingVerdict: Low margin but rising trends. Suitable for volume-heavy strategies with low risk.
+24h: Trends decreasing.Action: Short-term opportunity with high margin. Watch for 24h trend reversal.
 ---
 
-Risks to Watch
-Xerician Top
+#### 4. Zamorakian Hasta (Item ID: 11889)
 
-    Margin: 13.94%
+    Margin: 112,225 GP (6.45%)
 
-Trends: 24h Buy/Sell: Decreasing (long-term decline)Volume: 753,905 buys in 24hVerdict: High margin but declining trends. Avoid unless short-term opportunities arise.
+Volume: 26 buys, 22 sells (1h) → Good liquidity.Trends:
 
-    Dragon Spear
-        Margin: 5.15%
+    1h, 20m: Buy/Sell prices increasing.
 
-Trends: 24h Buy/Sell: DecreasingVolume: 340,492 buys in 24hVerdict: Low margin and declining trends. Not recommended for profit.
+24h: Trends decreasing.Action: High-margin short-term play. Similar to Karil’s set—profit quickly before 24h trend impacts.
 ---
 
-Summary of Recommendations
-Best Short-Term Play: Mixed Hide Boots (highest unrestricted liquidity with rising buy trends).
-Best Long-Term Play: Calcified Moth (consistent upward trends and high volume).Highest Margin: Mixed Hide Top (15.25% margin) but requires caution due to long-term declining trends.Volume-Based Trading: Yew Sapling (massive liquidity) or Onyx Dragon Bolts (e) (rising trends).
+#### 5. Blood Moon Chestplate (Item ID: 29022)
+
+    Margin: 189,444 GP (3.28%)
+
+Volume: 34 buys, 69 sells (1h) → High sell pressure.Trends:
+
+    1h, 1m: Buy/Sell prices increasing.
+
+24h: Trends decreasing..Action: High volume but mixed trends. Wait for 1h/1m trends to confirm before entering.
+---
+
+Key Takeaways
+Top Picks: Fremennik Kilt (highest margin + strong trends), Enhanced Crystal Teleport Seed (high liquidity), and Karil’s Armour Set (high margin + short-term bullishness).
+Risks: Items with 24h decreasing trends (e.g., Enhanced Crystal Teleport Seed, Zamorakian Hasta) require quick exits to avoid long-term losses. avoid unless volume is extremely high.
+
+Next Steps: Monitor 1h/20m trends for confirmation, execute trades quickly on bullish items, and avoid holding over 24h for declining trends.

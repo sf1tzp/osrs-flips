@@ -135,7 +135,15 @@ func (s *Scheduler) ExecuteAllJobs() {
 
 // executeJob executes a single job with error handling
 func (s *Scheduler) executeJob(job config.JobConfig) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	timeout := 25 * time.Minute
+	if job.Model != nil && job.Model.Timeout != nil {
+		if jobTimeout, err := time.ParseDuration(*job.Model.Timeout); err != nil {
+			timeout = jobTimeout
+			s.logger.WithField("timeout", timeout).Info("parsed_timeout_from_job_config")
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	s.logger.WithComponent("scheduler").WithField("job_name", job.Name).

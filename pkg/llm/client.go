@@ -28,14 +28,13 @@ func NewClient(baseURL string, timeout time.Duration) *Client {
 		baseURL = "http://10.0.0.4:8000"
 	}
 
-	if timeout == 0 {
-		timeout = 5 * time.Minute // Reduced default timeout
-	}
-
+	// Don't set a fixed timeout on the HTTP client - let individual requests
+	// control their own timeouts via context. This allows job-specific timeouts
+	// to work properly without being overridden by a hardcoded client timeout.
 	return &Client{
-		baseURL: baseURL,
+		baseURL:    baseURL,
 		httpClient: &http.Client{
-			Timeout: timeout,
+			// No Timeout set - individual requests use context for timeout control
 		},
 	}
 }

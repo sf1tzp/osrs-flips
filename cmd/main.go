@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"osrs-flipping/pkg/config"
@@ -13,11 +15,44 @@ import (
 )
 
 func main() {
+	// Parse command line arguments
+	var (
+		jobName = flag.String("job", "", "Name of specific job to run (must match a job name in config.yml)")
+		runAll  = flag.Bool("all", false, "Run all enabled jobs")
+		help    = flag.Bool("help", false, "Show help message")
+	)
+	flag.Parse()
+
+	// Show help if requested
+	if *help {
+		fmt.Println("🚀 OSRS Trade Analysis - Go Edition")
+		fmt.Println("=====================================")
+		fmt.Println()
+		fmt.Println("Usage:")
+		fmt.Println("  -job=\"Job Name\"  Run a specific job (must match job name in config.yml)")
+		fmt.Println("  -all             Run all enabled jobs")
+		fmt.Println("  -help            Show this help message")
+		fmt.Println()
+		fmt.Println("Examples:")
+		fmt.Println("  ./main -job=\"Tempting Trades Under 1M\"")
+		fmt.Println("  ./main -all")
+		return
+	}
+
+	// Validate arguments
+	if *jobName != "" && *runAll {
+		log.Fatal("Cannot specify both -job and -all flags. Use either one or the other.")
+	}
+
+	if *jobName == "" && !*runAll {
+		log.Fatal("Must specify either -job=\"Job Name\" or -all flag. Use -help for more information.")
+	}
+
 	fmt.Println("🚀 OSRS Trade Analysis - Go Edition")
 	fmt.Println("=====================================")
 
 	// Load configuration from config.yml and environment variables (.env file)
-	cfg, err := config.LoadConfigForMain("config.yml")
+	cfg, err := config.LoadConfigForCLI("config.yml")
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -28,6 +63,28 @@ func main() {
 	fmt.Printf("   Model: %s\n", cfg.LLM.Model)
 	fmt.Printf("   Log Level: %s\n", cfg.Logging.Level)
 	fmt.Printf("   Jobs configured: %d\n", len(cfg.Jobs))
+
+	// If specific job requested, validate it exists
+	if *jobName != "" {
+		jobExists := false
+		for _, job := range cfg.Jobs {
+			if job.Name == *jobName {
+				jobExists = true
+				break
+			}
+		}
+		if !jobExists {
+			availableJobs := make([]string, len(cfg.Jobs))
+			for i, job := range cfg.Jobs {
+				availableJobs[i] = fmt.Sprintf("  - \"%s\"", job.Name)
+			}
+			log.Fatalf("Job \"%s\" not found in configuration.\n\nAvailable jobs:\n%s",
+				*jobName, strings.Join(availableJobs, "\n"))
+		}
+		fmt.Printf("   Target job: %s\n", *jobName)
+	} else {
+		fmt.Printf("   Running all enabled jobs\n")
+	}
 
 	// Create job runner
 	jobRunner, err := jobs.NewJobRunner(cfg)
@@ -47,15 +104,28 @@ func main() {
 	// Create output formatter
 	formatter := jobs.NewOutputFormatter()
 
-	// Run all enabled jobs
-	fmt.Println("\n🔍 Running all enabled jobs...")
-
+	// Run job(s)
 	jobCtx, jobCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer jobCancel()
 
-	results, err := jobRunner.RunAllJobs(jobCtx)
-	if err != nil {
-		log.Fatalf("Failed to run jobs: %v", err)
+	var results []*jobs.JobResult
+
+	if *jobName != "" {
+		// Run specific job
+		fmt.Printf("\n🔍 Running job: %s...\n", *jobName)
+		result, err := jobRunner.RunJob(jobCtx, *jobName)
+		if err != nil {
+			log.Fatalf("Failed to run job %s: %v", *jobName, err)
+		}
+		results = []*jobs.JobResult{result}
+	} else {
+		// Run all enabled jobs
+		fmt.Println("\n🔍 Running all enabled jobs...")
+		var err error
+		results, err = jobRunner.RunAllJobs(jobCtx)
+		if err != nil {
+			log.Fatalf("Failed to run jobs: %v", err)
+		}
 	}
 
 	// Process results
