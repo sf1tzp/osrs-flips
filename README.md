@@ -1,5 +1,7 @@
 # osrs-flips
 
+![discord screenshot](https://i.imgur.com/CbD8CDA.png)
+
 A sophisticated system for analyzing Old School RuneScape trading opportunities, combining data analysis, LLM-powered insights, and automated Discord notifications. This project explores the intersection of financial analysis patterns and gaming markets through modern development practices.
 
 ## Why This Project?
