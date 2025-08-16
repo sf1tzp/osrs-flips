@@ -31,7 +31,7 @@ jobs:
     enabled: true
     filters:
       # pricing api filters
-      margin_gp_min: 1000
+      margin_gp_min: 3000
       margin_pct_min: 3.5 # At least 3.5% margin
       insta_sell_price_min: 8000
       insta_sell_price_max: 1000000
@@ -47,7 +47,7 @@ jobs:
       max_items: 50 # max items to pass into llm
     model:
       name: qwen3:4b # Override global model for this job
-      num_ctx: 30000 # Larger context for better analysis
+      num_ctx: 35000 # Larger context for better analysis
       timeout: "20m" # Job-specific timeout
 
   - name: "1M+ Wonders"
@@ -55,10 +55,10 @@ jobs:
     enabled: true
     filters:
       # pricing api filters
-      margin_gp_min: 30000
-      margin_pct_min: 4.5
+      margin_gp_min: 15000
+      margin_pct_min: 2.5
       insta_sell_price_min: 1000000
-      insta_sell_price_max: 10000000
+      insta_sell_price_max: 5000000
       max_hours_since_update: 2
       sort_by: "margin_gp"
       sort_desc: true
@@ -67,10 +67,10 @@ jobs:
       # volume api filters
       volume_24h_min: 30
     output:
-      max_items: 50 # max items to pass into llm
+      max_items: 45 # max items to pass into llm
     model:
       name: qwen3:4b # Override global model for this job
-      num_ctx: 30000 # Larger context for better analysis
+      num_ctx: 35000 # Larger context for better analysis
       # temperature: 0.0
       timeout: "20m" # Job-specific timeout
 
@@ -103,7 +103,7 @@ jobs:
 schedules:
   - job_name: "Tempting Trades Under 1M"
     cron: "0 0 * * * *" # at min 0
-    enabled: true
+    enabled: false
   - job_name: "1M+ Wonders"
-    cron: "0 30 * * * * " # at min 30
+    cron: "0 0/20 * * * * " # every 20 mi
     enabled: true
