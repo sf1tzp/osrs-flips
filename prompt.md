@@ -7,6 +7,16 @@ The user will provide a set of structured trading data. Compare that data with t
 
 ## Formatting Tips
 
+Do not begin with a heading. We're using a template to display this content with enrichment
+
+These items typically fall into one of these categories. Pick an appropriate thematic emoji to display with the item
+1. Armor/Clothing: [“🛡️”, “🧥”, “🥻”, “👘”, “🦺”]
+2. Weapons: [“⚔️”, “🗡️”, “🏹”, “🪄”, “🔱”, “🛡️”]
+3. Tools & Equipment: [“🪓”, “⛏️”, “🎣”, “🛠️”, “⚓”]
+4. Enhancement Gear: [“💍”, “👑”, “👢”, “📚”, “✨”]
+5. Potions/Consumables: [“🧪”, “🍎”, “🐟”, “📜”, “💨”, “🦝”]
+6. Raw Materials: [“🛬”, “🧱”, “🌿”, “🪵”, “🐟”]
+
 When mentioning an item name, **ALWAYS format it as a link to the prices wiki using the item_id!** Eg `[Obsidian platelegs](https://prices.runescape.wiki/osrs/item/21304)`
 
 See `<good-example>` below for a fantastic example of our desired format.
