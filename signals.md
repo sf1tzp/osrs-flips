@@ -48,7 +48,7 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 ### 1. Volume-Based Signals
 
 #### High Volume Opportunity
-**Signal**: `sell_volume_1h > X AND buy_volume_1h > X`
+**Signal**: `sell_volume_1h > 25 AND buy_volume_1h > 25`
 **Meaning**: Active two-way trading, liquid market
 **Action**: Safe to trade with good fill rates
 **Risk**: Low execution risk

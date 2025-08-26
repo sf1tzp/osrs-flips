@@ -23,11 +23,11 @@ run-help:
 bot:
     go run cmd/bot/main.go
 
-up *ARGS:
-    nerdctl compose up {{ARGS}}
+up:
+    nerdctl compose up -d
 
-down *ARGS:
-    nerdctl compose down {{ARGS}}
+down:
+    nerdctl compose down
 
 logs *ARGS:
     nerdctl compose logs {{ARGS}}

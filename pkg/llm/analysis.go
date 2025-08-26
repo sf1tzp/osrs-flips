@@ -3,6 +3,7 @@ package llm
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -398,13 +399,16 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 			lastUpdated["last_target_buy_price_time"] = item.LastInstaSellTime.Format(time.RFC3339)
 		}
 
+		afterTax := math.Floor(0.98 * float64(item.MarginGP))
+		afterTaxPct := item.MarginPct - 2
+
 		opportunities[i] = TradingOpportunity{
 			ItemID:        item.ItemID,
 			Name:          item.Name,
 			LastSellPrice: item.InstaBuyPrice,
 			LastBuyPrice:  item.InstaSellPrice,
-			MarginGP:      item.MarginGP,
-			MarginPct:     fmt.Sprintf("%.2f", item.MarginPct),
+			MarginGP:      int(afterTax),
+			MarginPct:     fmt.Sprintf("%.2f", afterTaxPct),
 			VolumeMetrics: volumeMetrics,
 			PriceAverages: priceAverages,
 			TrendSignals:  trendSignals,
