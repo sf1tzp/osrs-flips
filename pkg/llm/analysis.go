@@ -334,7 +334,7 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 		}
 
 		// Add price averages using OSRS terminology (GP values)
-		if item.AvgInstaBuyPrice20m != nil && item.AvgInstaSellPrice20m != nil {
+		if (item.AvgInstaBuyPrice20m != nil && item.AvgInstaSellPrice20m != nil) && (*item.AvgInstaBuyPrice20m != 0.0 && *item.AvgInstaSellPrice20m != 0.0) {
 			priceAverages["avg_prices_20m"] = map[string]string{
 				"target_sell_price": fmt.Sprintf("%.0f", *item.AvgInstaBuyPrice20m),
 				"target_buy_price":  fmt.Sprintf("%.0f", *item.AvgInstaSellPrice20m),
@@ -344,7 +344,7 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 			}
 		}
 
-		if item.AvgInstaBuyPrice1h != nil && item.AvgInstaSellPrice1h != nil {
+		if (item.AvgInstaBuyPrice1h != nil && item.AvgInstaSellPrice1h != nil) && (*item.AvgInstaBuyPrice1h != 0.0 && *item.AvgInstaSellPrice1h != 0.0) {
 			priceAverages["avg_prices_1h"] = map[string]string{
 				"target_sell_price": fmt.Sprintf("%.0f", *item.AvgInstaBuyPrice1h),
 				"target_buy_price":  fmt.Sprintf("%.0f", *item.AvgInstaSellPrice1h),
@@ -354,7 +354,7 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 			}
 		}
 
-		if item.AvgInstaBuyPrice24h != nil && item.AvgInstaSellPrice24h != nil {
+		if (item.AvgInstaBuyPrice24h != nil && item.AvgInstaSellPrice24h != nil) && (*item.AvgInstaBuyPrice24h != 0.0 && *item.AvgInstaSellPrice24h != 0.0) {
 			priceAverages["avg_prices_24h"] = map[string]string{
 				"target_sell_price": fmt.Sprintf("%.0f", *item.AvgInstaBuyPrice24h),
 				"target_buy_price":  fmt.Sprintf("%.0f", *item.AvgInstaSellPrice24h),

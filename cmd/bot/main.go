@@ -15,7 +15,7 @@ import (
 	"osrs-flipping/pkg/scheduler"
 )
 
-const VERSION = "0.0.4"
+const VERSION = "0.0.5"
 
 func main() {
 	// Load configuration with Discord validation
