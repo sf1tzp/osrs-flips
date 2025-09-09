@@ -16,7 +16,7 @@ llm:
 osrs:
   user_agent: "" # Set one here or via OSRS_API_USER_AGENT
   max_concurrent_calls: 3
-  rate_limit_delay_ms: 1000 # Please respect this amazing *free* community resource if you use this program
+  rate_limit_delay_ms: 500 # Please respect this amazing *free* community resource if you use this program
   volume_data_max_items: 1000
 
 # Logging configuration (structured for Fluent Bit ingestion)
@@ -31,8 +31,8 @@ jobs:
     enabled: true
     filters:
       # pricing api filters
-      margin_pct_min: 8
-      insta_sell_price_min: 8000
+      margin_pct_min: 5
+      margin_gp_min: 1000
       insta_sell_price_max: 1000000
 
       # Sort before fetching volume information
@@ -108,14 +108,14 @@ jobs:
 schedules:
   - job_name: "under-1m"
     cron: "0 0 * * * *"
-    enabled: true
+    enabled: false
   - job_name: "midrange"
-    cron: "0 20 * * * * "
+    cron: "0 0/20 * * * * "
     enabled: true
   - job_name: "trade-limited"
     cron: "0 30 * * * * "
     enabled: false
   - job_name: "active-items"
     cron: "0 40 * * * *"
-    enabled: true
+    enabled: false
 
