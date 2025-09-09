@@ -10,8 +10,3 @@
 | Dragon Knife            | 14,999    | 13,863     | 1,136       | 8.19       | 45,222,003 | Increasing | 2025-08-06T21:41:07Z (Buy) / 2025-08-06T21:41:58Z (Sell) |
 | Rune Boots              | 9,314     | 8,449      | 865         | 10.24      | 2,358,826  | Increasing | 2025-08-06T21:40:05Z (Buy) / 2025-08-06T21:41:58Z (Sell) |
 | Onyx Dragon Bolts (e)   | 9,800     | 9,326      | 474         | 5.08       | 12,804,650 | Increasing | 2025-08-06T21:42:00Z (Buy) / 2025-08-06T21:42:05Z (Sell) |
-
-**Notes:**
-- **Trend** is determined by the 24-hour price trend (buy and sell).
-- **24h Volume** is the sum of `insta_buy_volume` and `insta_sell_volume` for the 24-hour period.
-- **Last Updated** reflects the most recent buy and sell times.

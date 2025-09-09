@@ -52,9 +52,3 @@ Volume: 34 buys, 69 sells (1h) → High sell pressure.Trends:
 
 24h: Trends decreasing..Action: High volume but mixed trends. Wait for 1h/1m trends to confirm before entering.
 ---
-
-Key Takeaways
-Top Picks: Fremennik Kilt (highest margin + strong trends), Enhanced Crystal Teleport Seed (high liquidity), and Karil’s Armour Set (high margin + short-term bullishness).
-Risks: Items with 24h decreasing trends (e.g., Enhanced Crystal Teleport Seed, Zamorakian Hasta) require quick exits to avoid long-term losses. avoid unless volume is extremely high.
-
-Next Steps: Monitor 1h/20m trends for confirmation, execute trades quickly on bullish items, and avoid holding over 24h for declining trends.
