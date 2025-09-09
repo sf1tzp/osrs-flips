@@ -45,6 +45,9 @@ The OSRS Grand Exchange is a fascinating hybrid. It's *inspired* by market princ
 
 ## Trading Signals & Patterns
 
+> Note: The market is generally crashing at the moment. Items with overall increasing trends may be rare and worth pursuing
+
+
 ### 1. Volume-Based Signals
 
 #### High Volume Opportunity
