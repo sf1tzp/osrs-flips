@@ -33,6 +33,7 @@ type LLMConfig struct {
 	BaseURL string `yaml:"base_url" env:"LLM_BASE_URL"`
 	Model   string `yaml:"model" env:"LLM_MODEL"`
 	Timeout string `yaml:"timeout" env:"LLM_TIMEOUT"`
+	NumCtx  int    `yaml:"num_ctx" env:"LLM_NUM_CTX"`
 }
 
 // OSRSConfig holds OSRS API configuration
@@ -124,6 +125,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		LLM: LLMConfig{
 			BaseURL: "http://localhost:11434",
 			Model:   "qwen3:14b",
+			NumCtx:  8000,
 			// Timeout will be set from YAML or default in GetTimeout()
 		},
 		OSRS: OSRSConfig{

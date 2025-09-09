@@ -404,6 +404,7 @@ func (e *Executor) convertFilters(filters config.FilterConfig) (osrs.FilterOptio
 func (e *Executor) generateAnalysis(ctx context.Context, items []osrs.ItemData, jobConfig config.JobConfig) (string, error) {
 	// Get job-specific model configuration (merges job overrides with global config)
 	modelConfig := jobConfig.GetJobModelConfig(&e.config.LLM)
+	// todo: override top level llm default model config
 
 	// Get job-specific timeout
 	timeout := jobConfig.GetJobTimeout(&e.config.LLM)
