@@ -16,7 +16,7 @@ llm:
 osrs:
   user_agent: "" # Set one here or via OSRS_API_USER_AGENT
   max_concurrent_calls: 3
-  rate_limit_delay_ms: 500 # Please respect this amazing *free* community resource if you use this program
+  rate_limit_delay_ms: 1000 # Please respect this amazing *free* community resource if you use this program
   volume_data_max_items: 1000
 
 # Logging configuration (structured for Fluent Bit ingestion)
@@ -66,7 +66,7 @@ jobs:
     model:
       name: qwen3:8b
       num_ctx: 18000
-      temperature: 0.9
+      temperature: 0.3
 
   - name: "trade-limited"
     description: "Viable margins on items with daily trade limits"
