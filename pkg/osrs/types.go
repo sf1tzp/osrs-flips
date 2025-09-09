@@ -133,6 +133,7 @@ type FilterOptions struct {
 	MarginMax           *int
 	MarginPctMin        *float64
 	MarginPctMax        *float64
+	Volume20mMin        *int
 	Volume1hMin         *int
 	Volume24hMin        *int
 	MembersOnly         *bool

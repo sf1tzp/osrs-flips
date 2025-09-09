@@ -364,6 +364,9 @@ func (e *Executor) convertFilters(filters config.FilterConfig) (osrs.FilterOptio
 	if filters.InstaSellPriceMax != nil {
 		opts.InstaSellPriceMax = filters.InstaSellPriceMax
 	}
+	if filters.Volume20mMin != nil {
+		opts.Volume20mMin = filters.Volume20mMin
+	}
 	if filters.Volume1hMin != nil {
 		opts.Volume1hMin = filters.Volume1hMin
 	}

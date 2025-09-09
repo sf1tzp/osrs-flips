@@ -85,6 +85,7 @@ type FilterConfig struct {
 	// Volume filters
 	InstaBuyVolume1hMin  *float64 `yaml:"insta_buy_volume_1h_min,omitempty"`
 	InstaSellVolume1hMin *float64 `yaml:"insta_sell_volume_1h_min,omitempty"`
+	Volume20mMin         *int     `yaml:"volume_20m_min,omitempty"`
 	Volume1hMin          *int     `yaml:"volume_1h_min,omitempty"`
 	Volume24hMin         *int     `yaml:"volume_24h_min,omitempty"`
 	InstaSellPriceMin    *int     `yaml:"insta_sell_price_min,omitempty"`

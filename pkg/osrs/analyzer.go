@@ -242,6 +242,8 @@ func (a *Analyzer) ApplySecondaryFilter(items []ItemData, opts FilterOptions, ve
 		fmt.Printf("Applying secondary filters (volume-based) to %d items...\n", len(items))
 	}
 
+
+	// fmt.Printf("Volume Filter Options: %v\n", *opts.Volume20mMin)
 	for _, item := range items {
 		if a.passesVolumeFilters(item, opts) {
 			filtered = append(filtered, item)
@@ -274,6 +276,19 @@ func (a *Analyzer) ApplySecondaryFilter(items []ItemData, opts FilterOptions, ve
 // passesVolumeFilters checks if an item passes volume-based filter criteria
 func (a *Analyzer) passesVolumeFilters(item ItemData, opts FilterOptions) bool {
 	// Volume filters - both buy and sell volumes must individually meet the threshold
+	// Volume filters - both buy and sell volumes must individually meet the threshold
+	if opts.Volume20mMin != nil {
+		// Both buy and sell volumes must be present and >= threshold
+		if item.InstaBuyVolume20m == nil || item.InstaSellVolume20m == nil {
+			return false
+		}
+
+		thresholdFloat := float64(*opts.Volume20mMin)
+		if *item.InstaBuyVolume20m + *item.InstaSellVolume20m < thresholdFloat {
+			return false
+		}
+	}
+
 	if opts.Volume1hMin != nil {
 		// Both buy and sell volumes must be present and >= threshold
 		if item.InstaBuyVolume1h == nil || item.InstaSellVolume1h == nil {
@@ -281,7 +296,7 @@ func (a *Analyzer) passesVolumeFilters(item ItemData, opts FilterOptions) bool {
 		}
 
 		thresholdFloat := float64(*opts.Volume1hMin)
-		if *item.InstaBuyVolume1h < thresholdFloat || *item.InstaSellVolume1h < thresholdFloat {
+		if *item.InstaBuyVolume1h + *item.InstaSellVolume1h  < thresholdFloat {
 			return false
 		}
 	}
@@ -293,7 +308,7 @@ func (a *Analyzer) passesVolumeFilters(item ItemData, opts FilterOptions) bool {
 		}
 
 		thresholdFloat := float64(*opts.Volume24hMin)
-		if *item.InstaBuyVolume24h < thresholdFloat || *item.InstaSellVolume24h < thresholdFloat {
+		if *item.InstaBuyVolume24h + *item.InstaSellVolume24h < thresholdFloat {
 			return false
 		}
 	}
