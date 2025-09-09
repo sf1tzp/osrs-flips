@@ -9,7 +9,7 @@ discord:
 # LLM configuration
 llm:
   base_url: "http://localhost:11434" # Ollama server URL (or configure via LLM_BASE_URL)
-  model: "qwen3:14b" # Model to use for analysis
+  model: "qwen3:4b" # Model to use for analysis
   timeout: "20m" # Timeout for LLM requests
 
 # OSRS Wiki Real Time Prices API configuration
@@ -26,13 +26,12 @@ logging:
 
 # Trading analysis jobs
 jobs:
-  - name: "Tempting Trades Under 1M"
-    description: "Looking for Margins + Recent Volume Trends, up to a 1M buy limit"
+  - name: "under-1m"
+    description: "Viable margins with buy in under 1M"
     enabled: true
     filters:
       # pricing api filters
-      margin_gp_min: 3000
-      margin_pct_min: 3.5 # At least 3.5% margin
+      margin_pct_min: 8
       insta_sell_price_min: 8000
       insta_sell_price_max: 1000000
 
@@ -44,66 +43,79 @@ jobs:
       # volume api filters
       volume_1h_min: 20
     output:
-      max_items: 50 # max items to pass into llm
+      max_items: 25 # max items to pass into llm
     model:
-      name: qwen3:4b # Override global model for this job
-      num_ctx: 35000 # Larger context for better analysis
-      timeout: "20m" # Job-specific timeout
+      name: qwen3:8b
+      num_ctx: 18000
+      temperature: 0.9
 
-  - name: "1M+ Wonders"
-    description: "Looking for Margins + Recent Volume Trends, up to 10M buy limit"
+  - name: "midrange"
+    description: "Viable margins with buy in between 600k and 3.5M"
     enabled: true
     filters:
-      # pricing api filters
-      margin_gp_min: 15000
-      margin_pct_min: 2.5
-      insta_sell_price_min: 1000000
-      insta_sell_price_max: 5000000
-      max_hours_since_update: 2
-      sort_by: "margin_gp"
-      sort_desc: true
-      limit: 500 # max items to pass query osrs volume api
-
-      # volume api filters
-      volume_24h_min: 30
-    output:
-      max_items: 45 # max items to pass into llm
-    model:
-      name: qwen3:4b # Override global model for this job
-      num_ctx: 35000 # Larger context for better analysis
-      # temperature: 0.0
-      timeout: "20m" # Job-specific timeout
-
-  - name: "Daily Trade Limited"
-    description: "Looking for Margins + Recent Volume Trends, up to 10M buy limit"
-    enabled: false
-    filters:
-      # pricing api filters
-      buy_limit_max: 100 # These refer to the in-game daily trade limit for an item
-      buy_limit_min: 20
-
-      margin_gp_min: 4000
-      margin_pct_min: 4.0
+      margin_pct_min: 3
+      insta_sell_price_min: 600000
+      insta_sell_price_max: 3500000
       max_hours_since_update: 1
       sort_by: "margin_gp"
       sort_desc: true
-      limit: 500 # max items to pass query osrs volume api
-
-      # volume api filters
-      volume_24h_min: 100
+      limit: 500
+      volume_1h_min: 20
     output:
-      max_items: 50 # max items to pass into llm
+      max_items: 25 # max items to pass into llm
     model:
-      name: qwen3:4b # Override global model for this job
-      num_ctx: 30000 # Larger context for better analysis
-      # temperature: 0.0
-      timeout: "20m" # Job-specific timeout
+      name: qwen3:8b
+      num_ctx: 18000
+      temperature: 0.9
+
+  - name: "trade-limited"
+    description: "Viable margins on items with daily trade limits"
+    enabled: true
+    filters:
+      buy_limit_max: 1000 # These refer to the in-game daily trade limit for an item
+
+      margin_pct_min: 5
+      max_hours_since_update: 1
+      sort_by: "margin_gp"
+      sort_desc: true
+      limit: 500
+      volume_20m_min: 20
+    output:
+      max_items: 25 # max items to pass into llm
+    model:
+      name: qwen3:8b
+      num_ctx: 18000
+      temperature: 0.9
+
+  - name: "active-items"
+    description: "Viable margins on highly active items"
+    enabled: true
+    filters:
+      margin_pct_min: 3
+      max_hours_since_update: 1
+      sort_by: "margin_gp"
+      sort_desc: true
+      limit: 500
+      volume_20m_min: 50
+    output:
+      max_items: 25 # max items to pass into llm
+    model:
+      name: qwen3:8b
+      num_ctx: 18000
+      temperature: 0.9
 
 # Job schedules (cron format with seconds: second minute hour day month weekday)
 schedules:
-  - job_name: "Tempting Trades Under 1M"
-    cron: "0 0 * * * *" # at min 0
-    enabled: false
-  - job_name: "1M+ Wonders"
-    cron: "0 0/20 * * * * " # every 20 mi
+  - job_name: "under-1m"
+    cron: "0 0 * * * *"
     enabled: true
+  - job_name: "midrange"
+    cron: "0 20 * * * * "
+    enabled: true
+  - job_name: "trade-limited"
+    cron: "0 30 * * * * "
+    enabled: false
+  - job_name: "active-items"
+    cron: "0 40 * * * *"
+    enabled: true
+
