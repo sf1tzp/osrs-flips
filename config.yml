@@ -64,9 +64,9 @@ jobs:
     output:
       max_items: 25 # max items to pass into llm
     model:
-      name: qwen3:8b
+      name: qwen3:4b
       num_ctx: 18000
-      temperature: 0.3
+      temperature: 0.5
 
   - name: "trade-limited"
     description: "Viable margins on items with daily trade limits"
@@ -98,7 +98,7 @@ jobs:
       limit: 500
       volume_20m_min: 50
     output:
-      max_items: 25 # max items to pass into llm
+      max_items: 20 # max items to pass into llm
     model:
       name: qwen3:8b
       num_ctx: 18000
@@ -110,12 +110,12 @@ schedules:
     cron: "0 0 * * * *"
     enabled: false
   - job_name: "midrange"
-    cron: "0 0/20 * * * * "
+    cron: "0 0 * * * * "
     enabled: true
   - job_name: "trade-limited"
     cron: "0 30 * * * * "
     enabled: false
   - job_name: "active-items"
-    cron: "0 40 * * * *"
-    enabled: false
+    cron: "0 30 * * * *"
+    enabled: true
 
