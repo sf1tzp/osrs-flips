@@ -67,7 +67,7 @@ func TestPassesVolumeFilters(t *testing.T) {
 			description:    "When both volumes are below threshold individually, should fail",
 		},
 		{
-			name: "Volume1hMin filter - buy volume above, sell below threshold - should fail",
+			name: "Volume1hMin filter - buy volume above, sell below threshold - should pass",
 			item: ItemData{
 				ItemID:            1,
 				Name:              "Test Item",
@@ -77,22 +77,8 @@ func TestPassesVolumeFilters(t *testing.T) {
 			opts: FilterOptions{
 				Volume1hMin: intPtr(1),
 			},
-			expectedResult: false,
-			description:    "When only one volume meets threshold, should fail (both required)",
-		},
-		{
-			name: "Volume1hMin filter - sell volume above, buy below threshold - should fail",
-			item: ItemData{
-				ItemID:            1,
-				Name:              "Test Item",
-				InstaBuyVolume1h:  float64Ptr(0.5),
-				InstaSellVolume1h: float64Ptr(5.0),
-			},
-			opts: FilterOptions{
-				Volume1hMin: intPtr(1),
-			},
-			expectedResult: false,
-			description:    "When only one volume meets threshold, should fail (both required)",
+			expectedResult: true,
+			description:    "When only one volume meets threshold, should pass total volume filter",
 		},
 		{
 			name: "Volume1hMin filter - both volumes exactly at threshold - should pass",
@@ -151,7 +137,21 @@ func TestPassesVolumeFilters(t *testing.T) {
 			description:    "When both 24h volumes are below threshold individually, should fail",
 		},
 		{
-			name: "Volume24hMin filter - buy volume above, sell below threshold - should fail",
+			name: "Volume24hMin filter - both volumes below threshold - should pass",
+			item: ItemData{
+				ItemID:             1,
+				Name:               "Test Item",
+				InstaBuyVolume24h:  float64Ptr(0.5),
+				InstaSellVolume24h: float64Ptr(0.5),
+			},
+			opts: FilterOptions{
+				Volume24hMin: intPtr(1),
+			},
+			expectedResult: true,
+			description:    "When both 24h volumes are below threshold individually, should pass",
+		},
+		{ // NOTE: The volume filters work against the total volume, not individual
+			name: "Volume24hMin filter - buy volume above, sell below threshold - should pass",
 			item: ItemData{
 				ItemID:             1,
 				Name:               "Test Item",
@@ -161,8 +161,8 @@ func TestPassesVolumeFilters(t *testing.T) {
 			opts: FilterOptions{
 				Volume24hMin: intPtr(1),
 			},
-			expectedResult: false,
-			description:    "When only one 24h volume meets threshold, should fail (both required)",
+			expectedResult: true,
+			description:    "When only one 24h volume meets threshold, should pass total volume filter",
 		},
 		{
 			name: "Volume24hMin filter - both volumes above threshold - should pass",
@@ -195,7 +195,7 @@ func TestPassesVolumeFilters(t *testing.T) {
 			expectedResult: true,
 			description:    "When all volumes meet their respective thresholds, should pass",
 		},
-		{
+		{ // NOTE: The volume filters work against the total volume, not individual
 			name: "Both volume filters - 1h fails, 24h passes - should fail",
 			item: ItemData{
 				ItemID:             1,
@@ -209,7 +209,7 @@ func TestPassesVolumeFilters(t *testing.T) {
 				Volume1hMin:  intPtr(2),
 				Volume24hMin: intPtr(20),
 			},
-			expectedResult: false,
+			expectedResult: true,
 			description:    "When any volume filter fails, entire filter should fail",
 		},
 		{

@@ -30,7 +30,7 @@ logs *ARGS:
     nerdctl compose logs {{ARGS}}
 
 test:
-    go test -v ./...
+    go test -v ./... | tee test.log
 
 test-coverage:
     go test -v -coverprofile=coverage.out ./...

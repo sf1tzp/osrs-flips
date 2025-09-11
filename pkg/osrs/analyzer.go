@@ -179,11 +179,10 @@ func (a *Analyzer) ApplyFilter(opts FilterOptions, verbose bool) ([]ItemData, er
 		fmt.Printf("After filtering: %d items remain\n", len(filtered))
 	}
 
-	// Apply sorting
-	if opts.SortBy != "" {
-		a.sortItems(filtered, opts.SortBy, opts.SortDesc)
+	if opts.SortByAfterPrice != "" {
+		a.sortItems(filtered, opts.SortByAfterPrice, opts.SortDesc)
 		if verbose {
-			fmt.Printf("Sorted by %s (desc=%t)\n", opts.SortBy, opts.SortDesc)
+			fmt.Printf("Sorted by %s (desc=%t)\n", opts.SortByAfterPrice, opts.SortDesc)
 		}
 	}
 
@@ -220,7 +219,8 @@ func (a *Analyzer) ApplyPrimaryFilter(opts FilterOptions, verbose bool) ([]ItemD
 		MaxHoursSinceUpdate: opts.MaxHoursSinceUpdate,
 		NameContains:        opts.NameContains,
 		ExcludeItems:        opts.ExcludeItems,
-		SortBy:              opts.SortBy,
+		SortByAfterPrice:    opts.SortByAfterPrice,
+		SortByAfterVolume:   opts.SortByAfterVolume,
 		SortDesc:            opts.SortDesc,
 		Limit:               opts.Limit,
 		// Volume filters excluded: Volume1hMin, Volume24hMin
@@ -242,7 +242,6 @@ func (a *Analyzer) ApplySecondaryFilter(items []ItemData, opts FilterOptions, ve
 		fmt.Printf("Applying secondary filters (volume-based) to %d items...\n", len(items))
 	}
 
-
 	// fmt.Printf("Volume Filter Options: %v\n", *opts.Volume20mMin)
 	for _, item := range items {
 		if a.passesVolumeFilters(item, opts) {
@@ -254,11 +253,11 @@ func (a *Analyzer) ApplySecondaryFilter(items []ItemData, opts FilterOptions, ve
 		fmt.Printf("After volume filtering: %d items remain\n", len(filtered))
 	}
 
-	// Apply sorting
-	if opts.SortBy != "" {
-		a.sortItems(filtered, opts.SortBy, opts.SortDesc)
+	// Apply sorting after volume filters
+	if opts.SortByAfterVolume != "" {
+		a.sortItems(filtered, opts.SortByAfterVolume, opts.SortDesc)
 		if verbose {
-			fmt.Printf("Sorted by %s (desc=%t)\n", opts.SortBy, opts.SortDesc)
+			fmt.Printf("Sorted by %s (desc=%t)\n", opts.SortByAfterVolume, opts.SortDesc)
 		}
 	}
 
@@ -284,7 +283,7 @@ func (a *Analyzer) passesVolumeFilters(item ItemData, opts FilterOptions) bool {
 		}
 
 		thresholdFloat := float64(*opts.Volume20mMin)
-		if *item.InstaBuyVolume20m + *item.InstaSellVolume20m < thresholdFloat {
+		if *item.InstaBuyVolume20m+*item.InstaSellVolume20m < thresholdFloat {
 			return false
 		}
 	}
@@ -296,7 +295,7 @@ func (a *Analyzer) passesVolumeFilters(item ItemData, opts FilterOptions) bool {
 		}
 
 		thresholdFloat := float64(*opts.Volume1hMin)
-		if *item.InstaBuyVolume1h + *item.InstaSellVolume1h  < thresholdFloat {
+		if *item.InstaBuyVolume1h+*item.InstaSellVolume1h < thresholdFloat {
 			return false
 		}
 	}
@@ -308,7 +307,7 @@ func (a *Analyzer) passesVolumeFilters(item ItemData, opts FilterOptions) bool {
 		}
 
 		thresholdFloat := float64(*opts.Volume24hMin)
-		if *item.InstaBuyVolume24h + *item.InstaSellVolume24h < thresholdFloat {
+		if *item.InstaBuyVolume24h+*item.InstaSellVolume24h < thresholdFloat {
 			return false
 		}
 	}
@@ -436,6 +435,52 @@ func (a *Analyzer) sortItems(items []ItemData, sortBy string, desc bool) {
 			less = a.compareTimePtr(items[i].LastInstaBuyTime, items[j].LastInstaBuyTime)
 		case "last_insta_sell_time":
 			less = a.compareTimePtr(items[i].LastInstaSellTime, items[j].LastInstaSellTime)
+
+		// 20-minute volume metrics
+		case "volume_20m":
+			less = a.compareCombinedVolume(items[i].InstaBuyVolume20m, items[i].InstaSellVolume20m,
+				items[j].InstaBuyVolume20m, items[j].InstaSellVolume20m)
+		case "insta_buy_volume_20m":
+			less = a.compareFloat64Ptr(items[i].InstaBuyVolume20m, items[j].InstaBuyVolume20m)
+		case "insta_sell_volume_20m":
+			less = a.compareFloat64Ptr(items[i].InstaSellVolume20m, items[j].InstaSellVolume20m)
+		case "avg_insta_buy_price_20m":
+			less = a.compareFloat64Ptr(items[i].AvgInstaBuyPrice20m, items[j].AvgInstaBuyPrice20m)
+		case "avg_insta_sell_price_20m":
+			less = a.compareFloat64Ptr(items[i].AvgInstaSellPrice20m, items[j].AvgInstaSellPrice20m)
+		case "avg_margin_gp_20m":
+			less = a.compareFloat64Ptr(items[i].AvgMarginGP20m, items[j].AvgMarginGP20m)
+
+		// 1-hour volume metrics
+		case "volume_1h":
+			less = a.compareCombinedVolume(items[i].InstaBuyVolume1h, items[i].InstaSellVolume1h,
+				items[j].InstaBuyVolume1h, items[j].InstaSellVolume1h)
+		case "insta_buy_volume_1h":
+			less = a.compareFloat64Ptr(items[i].InstaBuyVolume1h, items[j].InstaBuyVolume1h)
+		case "insta_sell_volume_1h":
+			less = a.compareFloat64Ptr(items[i].InstaSellVolume1h, items[j].InstaSellVolume1h)
+		case "avg_insta_buy_price_1h":
+			less = a.compareFloat64Ptr(items[i].AvgInstaBuyPrice1h, items[j].AvgInstaBuyPrice1h)
+		case "avg_insta_sell_price_1h":
+			less = a.compareFloat64Ptr(items[i].AvgInstaSellPrice1h, items[j].AvgInstaSellPrice1h)
+		case "avg_margin_gp_1h":
+			less = a.compareFloat64Ptr(items[i].AvgMarginGP1h, items[j].AvgMarginGP1h)
+
+		// 24-hour volume metrics
+		case "volume_24h":
+			less = a.compareCombinedVolume(items[i].InstaBuyVolume24h, items[i].InstaSellVolume24h,
+				items[j].InstaBuyVolume24h, items[j].InstaSellVolume24h)
+		case "insta_buy_volume_24h":
+			less = a.compareFloat64Ptr(items[i].InstaBuyVolume24h, items[j].InstaBuyVolume24h)
+		case "insta_sell_volume_24h":
+			less = a.compareFloat64Ptr(items[i].InstaSellVolume24h, items[j].InstaSellVolume24h)
+		case "avg_insta_buy_price_24h":
+			less = a.compareFloat64Ptr(items[i].AvgInstaBuyPrice24h, items[j].AvgInstaBuyPrice24h)
+		case "avg_insta_sell_price_24h":
+			less = a.compareFloat64Ptr(items[i].AvgInstaSellPrice24h, items[j].AvgInstaSellPrice24h)
+		case "avg_margin_gp_24h":
+			less = a.compareFloat64Ptr(items[i].AvgMarginGP24h, items[j].AvgMarginGP24h)
+
 		default:
 			// Default to sorting by margin_gp
 			less = items[i].MarginGP < items[j].MarginGP
@@ -473,4 +518,38 @@ func (a *Analyzer) compareTimePtr(t1, t2 *time.Time) bool {
 		return false
 	}
 	return t1.Before(*t2)
+}
+
+func (a *Analyzer) compareFloat64Ptr(f1, f2 *float64) bool {
+	if f1 == nil && f2 == nil {
+		return false
+	}
+	if f1 == nil {
+		return true
+	}
+	if f2 == nil {
+		return false
+	}
+	return *f1 < *f2
+}
+
+func (a *Analyzer) compareCombinedVolume(buyVol1, sellVol1, buyVol2, sellVol2 *float64) bool {
+	// Calculate combined volumes, treating nil as 0
+	combined1 := 0.0
+	if buyVol1 != nil {
+		combined1 += *buyVol1
+	}
+	if sellVol1 != nil {
+		combined1 += *sellVol1
+	}
+
+	combined2 := 0.0
+	if buyVol2 != nil {
+		combined2 += *buyVol2
+	}
+	if sellVol2 != nil {
+		combined2 += *sellVol2
+	}
+
+	return combined1 < combined2
 }

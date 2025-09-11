@@ -140,7 +140,8 @@ type FilterOptions struct {
 	MaxHoursSinceUpdate *float64
 	NameContains        *string
 	ExcludeItems        []string
-	SortBy              string
+	SortByAfterPrice    string
+	SortByAfterVolume   string
 	SortDesc            bool
 	Limit               int
 }

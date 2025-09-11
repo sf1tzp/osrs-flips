@@ -100,9 +100,10 @@ type FilterConfig struct {
 	MaxHoursSinceUpdate *float64 `yaml:"max_hours_since_update,omitempty"`
 
 	// Sorting and limiting
-	SortBy   string `yaml:"sort_by,omitempty"`
-	SortDesc *bool  `yaml:"sort_desc,omitempty"`
-	Limit    *int   `yaml:"limit,omitempty"`
+	SortByAfterPrice  string `yaml:"sort_by_after_price,omitempty"`
+	SortByAfterVolume string `yaml:"sort_by_after_volume,omitempty"`
+	SortDesc          *bool  `yaml:"sort_desc,omitempty"`
+	Limit             *int   `yaml:"limit,omitempty"`
 }
 
 // OutputConfig controls output formatting

@@ -372,10 +372,16 @@ func (e *Executor) convertFilters(filters config.FilterConfig) (osrs.FilterOptio
 	}
 
 	// Set default sorting if not specified
-	if filters.SortBy != "" {
-		opts.SortBy = filters.SortBy
+	if filters.SortByAfterPrice != "" {
+		opts.SortByAfterPrice = filters.SortByAfterPrice
 	} else {
-		opts.SortBy = "margin_gp"
+		opts.SortByAfterPrice = "margin_gp" // default primary sort by margin
+	}
+
+	if filters.SortByAfterVolume != "" {
+		opts.SortByAfterVolume = filters.SortByAfterVolume
+	} else {
+		opts.SortByAfterVolume = "margin_gp" // default secondary sort by margin
 	}
 
 	if filters.SortDesc != nil {
