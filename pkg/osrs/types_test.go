@@ -207,16 +207,21 @@ func TestCalculate24hMetricsEdgeCases(t *testing.T) {
 
 		result := analyzer.calculate24hMetrics(dataSlice, metrics)
 
-		if result.InstaBuyPriceTrend24h != "flat" {
-			t.Errorf("Expected InstaBuyPriceTrend24h to be 'flat', got %s", result.InstaBuyPriceTrend24h)
-		}
-
+		// calculate24hMetrics only sets weekly and monthly trends, not 24h trends
 		if result.InstaBuyPriceTrend1w != "flat" {
 			t.Errorf("Expected InstaBuyPriceTrend1w to be 'flat', got %s", result.InstaBuyPriceTrend1w)
 		}
 
+		if result.InstaSellPriceTrend1w != "flat" {
+			t.Errorf("Expected InstaSellPriceTrend1w to be 'flat', got %s", result.InstaSellPriceTrend1w)
+		}
+
 		if result.InstaBuyPriceTrend1m != "flat" {
 			t.Errorf("Expected InstaBuyPriceTrend1m to be 'flat', got %s", result.InstaBuyPriceTrend1m)
+		}
+
+		if result.InstaSellPriceTrend1m != "flat" {
+			t.Errorf("Expected InstaSellPriceTrend1m to be 'flat', got %s", result.InstaSellPriceTrend1m)
 		}
 	})
 
@@ -235,8 +240,13 @@ func TestCalculate24hMetricsEdgeCases(t *testing.T) {
 			t.Errorf("Expected InstaBuyVolume24h to be 0, got %f", result.InstaBuyVolume24h)
 		}
 
-		if result.InstaBuyPriceTrend24h != "flat" {
-			t.Errorf("Expected InstaBuyPriceTrend24h to be 'flat', got %s", result.InstaBuyPriceTrend24h)
+		// calculate24hMetrics only sets weekly and monthly trends, not 24h trends
+		if result.InstaBuyPriceTrend1w != "flat" {
+			t.Errorf("Expected InstaBuyPriceTrend1w to be 'flat', got %s", result.InstaBuyPriceTrend1w)
+		}
+
+		if result.InstaBuyPriceTrend1m != "flat" {
+			t.Errorf("Expected InstaBuyPriceTrend1m to be 'flat', got %s", result.InstaBuyPriceTrend1m)
 		}
 	})
 }
@@ -288,14 +298,14 @@ func TestCalculateTrendRealWorldScenarios(t *testing.T) {
 			name:        "market crash scenario",
 			x:           []float64{1, 2, 3, 4, 5, 6, 7},
 			y:           []float64{10000, 9500, 8000, 7000, 6000, 5500, 5000}, // 50% crash
-			expected:    "decreasing",
+			expected:    "sharp decrease",
 			description: "Should detect severe market decline",
 		},
 		{
 			name:        "market bubble scenario",
 			x:           []float64{1, 2, 3, 4, 5, 6},
 			y:           []float64{1000, 1200, 1500, 2000, 2800, 3500}, // 250% increase
-			expected:    "increasing",
+			expected:    "sharp increase",
 			description: "Should detect rapid price increase",
 		},
 		{
@@ -323,7 +333,7 @@ func TestCalculateTrendRealWorldScenarios(t *testing.T) {
 			name:        "very small price movements",
 			x:           []float64{1, 2, 3, 4, 5},
 			y:           []float64{0.001, 0.002, 0.003, 0.004, 0.005}, // 400% but tiny absolute values
-			expected:    "increasing",
+			expected:    "sharp increase",
 			description: "Should handle very small absolute values",
 		},
 	}

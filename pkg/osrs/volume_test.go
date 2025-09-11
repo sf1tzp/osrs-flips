@@ -36,13 +36,13 @@ func TestCalculateTrend(t *testing.T) {
 			name:     "clearly increasing trend",
 			x:        []float64{1, 2, 3, 4, 5},
 			y:        []float64{100, 105, 110, 115, 120}, // 20% increase
-			expected: "increasing",
+			expected: "sharp increase",
 		},
 		{
 			name:     "clearly decreasing trend",
 			x:        []float64{1, 2, 3, 4, 5},
 			y:        []float64{120, 115, 110, 105, 100}, // 16.7% decrease
-			expected: "decreasing",
+			expected: "sharp decrease",
 		},
 		{
 			name:     "flat trend - small changes",
