@@ -16,7 +16,7 @@ llm:
 osrs:
   user_agent: "" # Set one here or via OSRS_API_USER_AGENT
   max_concurrent_calls: 3
-  rate_limit_delay_ms: 1000 # Please respect this amazing *free* community resource if you use this program
+  rate_limit_delay_ms: 500 # Please respect this amazing *free* community resource if you use this program
   volume_data_max_items: 1000
 
 # Logging configuration (structured for Fluent Bit ingestion)
@@ -95,12 +95,13 @@ jobs:
     description: "Viable margins on highly active items"
     enabled: true
     filters:
+      margin_gp_min: 1000
       margin_pct_min: 3
       sort_by_after_price: "margin_gp"
       sort_desc: true
       limit: 500
-      volume_20m_min: 50
-      sort_by_after_volume: "margin_pct"
+      volume_20m_min: 20
+      sort_by_after_volume: "volume_20m"
     output:
       max_items: 20 # max items to pass into llm
     model:
