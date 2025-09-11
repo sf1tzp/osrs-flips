@@ -289,8 +289,8 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 		LastBuyPrice  *int `json:"last_buy_price"`  // Price where sell orders get filled instantly
 
 		// Profit metrics (GP values)
-		MarginGP  int    `json:"margin_gp"`
-		MarginPct string `json:"margin_pct"`
+		AfterTaxTakeaway int    `json:"after_tax_takeaway"`
+		MarginPct        string `json:"margin_pct"`
 
 		// Volume metrics (transaction counts, not GP values)
 		VolumeMetrics map[string]interface{} `json:"volume_metrics,omitempty"`
@@ -399,20 +399,20 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 			lastUpdated["last_target_buy_price_time"] = item.LastInstaSellTime.Format(time.RFC3339)
 		}
 
-		afterTax := math.Floor(0.98 * float64(item.MarginGP))
-		afterTaxPct := item.MarginPct - 2
+		// Subtract the grand exchange fee of 2% from the margin
+		afterTax := item.MarginGP - int(math.Floor(0.02*float64(*item.InstaBuyPrice)))
 
 		opportunities[i] = TradingOpportunity{
-			ItemID:        item.ItemID,
-			Name:          item.Name,
-			LastSellPrice: item.InstaBuyPrice,
-			LastBuyPrice:  item.InstaSellPrice,
-			MarginGP:      int(afterTax),
-			MarginPct:     fmt.Sprintf("%.2f", afterTaxPct),
-			VolumeMetrics: volumeMetrics,
-			PriceAverages: priceAverages,
-			TrendSignals:  trendSignals,
-			LastUpdated:   lastUpdated,
+			ItemID:           item.ItemID,
+			Name:             item.Name,
+			LastSellPrice:    item.InstaBuyPrice,
+			LastBuyPrice:     item.InstaSellPrice,
+			AfterTaxTakeaway: int(afterTax),
+			MarginPct:        fmt.Sprintf("%.2f", item.MarginPct),
+			VolumeMetrics:    volumeMetrics,
+			PriceAverages:    priceAverages,
+			TrendSignals:     trendSignals,
+			LastUpdated:      lastUpdated,
 		}
 	}
 

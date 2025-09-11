@@ -1,5 +1,7 @@
 ## 📜 [Trouver parchment](https://prices.runescape.wiki/osrs/item/24187)
-Current Margin (after tax): **27,979 GP (2.39%)**
+
+- Current Margin: 2.39%
+- After tax takeaway: **27,979 GP** / ea
 
 2.39% margin with mixed trends. Decreasing buy price trend and increasing sell price trend = margin expansion pattern.
 
@@ -16,7 +18,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## ⚔️ [Dragon axe](https://prices.runescape.wiki/osrs/item/6739)
-Current Margin (after tax): **4,771 GP (4.66%)**
+
+- Current Margin: 4.66%
+- After tax takeaway: **4,771 GP** / ea
 
 4.66% margin with mixed trends. Flat buy price trend and decreasing sell price trend = margin compression pattern.
 
@@ -33,7 +37,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 🕹️ [Spider cave teleport](https://prices.runescape.wiki/osrs/item/29782)
-Current Margin (after tax): **2,942 GP (3.51%)**
+
+- Current Margin: 3.51%
+- After tax takeaway: **2,942 GP** / ea
 
 3.51% margin with strong buy pressure. Flat buy price trend and increasing sell price trend = margin expansion pattern.
 
@@ -50,7 +56,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 🛡️ [Helm of neitiznot](https://prices.runescape.wiki/osrs/item/10828)
-Current Margin (after tax): **2,631 GP (3.42%)**
+
+- Current Margin: 3.42%
+- After tax takeaway: **2,631 GP** / ea
 
 3.42% margin with balanced volume. Increasing buy price trend and increasing sell price trend = bullish convergence.
 
@@ -67,7 +75,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 🌿 [Yew sapling](https://prices.runescape.wiki/osrs/item/5373)
-Current Margin (after tax): **1,386 GP (4.47%)**
+
+- Current Margin: 4.47%
+- After tax takeaway: **1,386 GP** / ea
 
 4.47% margin with strong buy pressure. Flat buy price trend and decreasing sell price trend = margin compression pattern.
 
@@ -84,7 +94,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## ⚔️ [Rune sword](https://prices.runescape.wiki/osrs/item/1289)
-Current Margin (after tax): **1,351 GP (11.01%)**
+
+- Current Margin: 11.01%
+- After tax takeaway: **1,351 GP** / ea
 
 11.01% margin with high buy pressure. Flat buy price trend and flat sell price trend = stable margin.
 
@@ -101,7 +113,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 🌱 [Cadantine seed](https://prices.runescape.wiki/osrs/item/12697)
-Current Margin (after tax): **898 GP (11.93%)**
+
+- Current Margin: 11.93%
+- After tax takeaway: **898 GP** / ea
 
 11.93% margin with strong buy pressure. Sharp decrease in buy price trend and sharp increase in sell price trend = margin expansion pattern.
 
@@ -118,7 +132,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 🍱 [Quetzal feed](https://prices.runescape.wiki/osrs/item/23697)
-Current Margin (after tax): **898 GP (11.93%)**
+
+- Current Margin: 11.93%
+- After tax takeaway: **898 GP** / ea
 
 11.93% margin with strong buy pressure. Sharp increase in buy price trend and sharp increase in sell price trend = bullish convergence.
 
@@ -135,7 +151,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 💍 [Skills necklace(4)](https://prices.runescape.wiki/osrs/item/11233)
-Current Margin (after tax): **693 GP (37.51%)**
+
+- Current Margin: 37.51%
+- After tax takeaway: **693 GP** / ea
 
 37.51% margin with strong buy pressure. Sharp decrease in buy price trend and sharp increase in sell price trend = margin expansion pattern.
 
@@ -152,7 +170,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 🧪 [Super combat potion(3)](https://prices.runescape.wiki/osrs/item/12699)
-Current Margin (after tax): **643 GP (4.72%)**
+
+- Current Margin: 4.72%
+- After tax takeaway: **643 GP** / ea
 
 4.72% margin with strong buy pressure. Sharp increase in buy price trend and sharp increase in sell price trend = bullish convergence.
 
@@ -169,7 +189,9 @@ Volume Info (insta-sold / insta-bought)
 ---
 
 ## 🧪 [Super combat potion(1)](https://prices.runescape.wiki/osrs/item/12701)
-Current Margin (after tax): **623 GP (11.36%)**
+
+- Current Margin: 11.36%
+- After tax takeaway: **623 GP** / ea
 
 11.36% margin with strong buy pressure. Sharp decrease in buy price trend and sharp decrease in sell price trend = margin compression pattern.
 
