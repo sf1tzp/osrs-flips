@@ -2,7 +2,7 @@
 
 Configurable OldSchool RuneScape flip-finder with ollama and discord integrations.
 
-![discord screenshot](https://i.imgur.com/HF72KxW.png)
+![discord screenshot](https://i.imgur.com/ncYAnpr.png)
 ![example flip](https://i.imgur.com/BE16VyL.png)
 
 ## Usage
