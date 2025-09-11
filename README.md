@@ -1,101 +1,81 @@
 # osrs-flips
 
-![discord screenshot](https://i.imgur.com/CbD8CDA.png)
+Configurable OldSchool RuneScape flip-finder with ollama and discord integrations.
 
-A sophisticated system for analyzing Old School RuneScape trading opportunities, combining data analysis, LLM-powered insights, and automated Discord notifications. This project explores the intersection of financial analysis patterns and gaming markets through modern development practices.
+![discord screenshot](https://i.imgur.com/HF72KxW.png)
+![example flip](https://i.imgur.com/BE16VyL.png)
 
-## Why This Project?
+## Usage
 
-This project emerged from several converging interests and technical curiosities:
+Configure jobs and filters in [config.yml](./config.yml). Jobs can be run individually via the cli (`just`), or configured to run on a schedule.
 
-**Crossover with Symbology**: Having spent considerable time on my other side project analyzing financial filings and market data, I found the OSRS Grand Exchange fascinating as a controlled environment that mirrors many real-world trading patterns. The structured nature of game economies provides an excellent sandbox for testing analytical approaches without real financial risk, while the underlying data patterns share surprising similarities with traditional financial markets.
-
-**Jupyter/Pandas Data Exploration**: The OSRS API provides rich, real-time trading data that's perfect for exploratory data analysis. This project gave me an opportunity to dive deep into pandas operations, time series analysis, and data visualization techniques. The gaming context makes the exploration more engaging than traditional financial datasets, while still providing meaningful insights into market dynamics.
-
-**Claude Sonnet 4 & Copilot Collaboration**: One of the most interesting aspects was observing how Claude Sonnet 4 and GitHub Copilot handle the challenge of converting a Python prototype into production Go code. The transition from rapid prototyping in Python to efficient, concurrent Go implementations revealed fascinating insights about AI-assisted development patterns and the strengths each tool brings to different phases of development.
-
-**Go Deployment Patterns**: This project served as an excellent vehicle for exploring modern Go deployment strategies, including containerization, structured logging, graceful shutdown patterns, and configuration management. The real-time nature of trading data provided authentic challenges for building robust, production-ready services.
-
-## Program Usage
-
-### CLI vs Container Deployments
-
-The system supports both standalone CLI execution and containerized deployment, using [just]()
-
-**CLI Mode:**
 ```bash
 # Build and run directly
-just run
-
-# Or run the bot component
-just bot
+just run "job-name"
 
 # Or build & deploy the compose file
 just build up
 ```
 
-### Configuration File Syntax
+### Jobs and Filter Configuration
 
-The system uses a YAML configuration file (`config.yml`) to define trading jobs and analysis parameters:
+You can define different jobs with custom filters. When a job runs, it first retrieves data from the wiki's price API (a single call for many items). Your configured price filters are applied to that initial set. The items are then sorted, and volume information is retrieved from the timeseries API (up to `limit` calls for `limit` items). Your configured volume filters are then applied, and data is sent to ollama for summary.
+
+- Several price and volume filters are available to choose from. [config.yml](./config.yml) has more examples.
+- You can provide specific model configurations for ollama to use.
+- The prompt is available in [prompt.md](./prompt.md) and can be customized to suit your needs.
+
+> Note: the use of 'insta buy' and `insta sell` terminology is kind of confusing. On the Grand Exchange, you try to buy items at a low "insta sell" price and sell at a high "insta buy" price.
+> If you have suggestions to improve the configuration syntax, please submit them!
+
+
+> Another Note: you can use `output.max_items` to limit the input context size depending on model/VRAM requirements. Optionally configure `model.num_ctx` to change the context size on ollama.
 
 ```yaml
 # Trading analysis jobs
 jobs:
-  - name: "Tempting Trades"
-    description: "Looking for Margins + Recent Volume Trends, up to 3.33M buy limit"
-    enabled: true
+  - name: "example"
+    description: "Items with 4.5% margin, up to 1M in price, with at least 60 trades in the last hour"
     filters:
       # Pricing API filters
       margin_pct_min: 4.5           # Minimum profit margin percentage
-      insta_sell_price_max: 3330000 # Maximum item price
-      insta_sell_price_min: 8000    # Minimum item price
-      max_hours_since_update: 1     # Data freshness requirement
-      sort_by: "margin_gp"          # Sort by absolute profit
-      sort_desc: true
-      limit: 500                    # Max items for volume analysis
+      insta_sell_price_max: 1000000 # Maximum item price
 
       # Volume API filters
-      volume_24h_min: 500           # Minimum 24h trade volume
+      limit: 500                    # Limit on volume API calls
+      volume_1h_min: 60             # Filter by 20m/1h/24h activity
 
     output:
-      max_items: 20                 # Items passed to LLM analysis
+      max_items: 20                 # Limit item json passed to LLM
+    model:
+      num_ctx: 15000                # Tune model parameters as necessary
 
-# Job scheduling
+# Scheduling
 schedules:
-  - job_name: "Tempting Trades"
+  - job_name: "example"
     cron: "0 */30 * * * *"         # Every 30 minutes
-    enabled: true
 ```
 
-### Prompt, Example, and Signals Integration
+### Prompt & Data Strategy
 
-The system combines three key documents to create comprehensive LLM analysis:
+# System Prompt
 
-**`prompt.md`**: Contains the main system instructions and context for the LLM, including the overall objective, output format requirements, and links to the OSRS wiki for reference.
+This project uses a technique called 'few shot learning' - We try to influence the output presentation by including a couple of examples in the system prompt.
 
-**`signals.md`**: Provides detailed documentation of trading signals, price terminology, and market mechanics. This file explains the critical distinction between `insta_sell_price` and `insta_buy_price`, and how they relate to profitable trading strategies.
+We also include `signals.md` to give the model some added context relevant to this domain.
 
-**`example-output.md`**: Demonstrates the expected format and style for analysis results, helping the LLM maintain consistency in its recommendations.
+# User Prompt
 
-These files are mounted as volumes in the container deployment, allowing for easy updates without rebuilding the container:
+We want to present the LLM a bunch of market data, in such a way that
+- Reduces input context size
+- Clearly communicates data in a way that the model expects as described in the system prompt.
+- Uses words instead of numbers to convey certain concepts so the model doesn't have to translate them (ie 'flat' or 'sharp' trends).
 
-```yaml
-volumes:
-  - ./prompt.md:/app/prompt.md:ro
-  - ./signals.md:/app/signals.md:ro
-  - ./example-output.md:/app/example-output.md:ro
-```
+After a couple of iterations I settled on a structued json format, which is built with some careful LLM aware refinements:
+- No repeated URL characters - URL formatted is coerced by the prompt.
+- Grouping related data segments under common keys, to avoid repeated key characters
+- Avoids supplying incomplete or confusing zero-value data when encountered
 
-#### User Prompt
+Here's an example: [example-context-data.json](./example-context-data.json)
 
-We format OSRS trading data into a structured JSON array, aiming to provide concise context for the LLM without repeating __too many__ characters. It's much smaller than a completely flat table structure converted to json, allowing us to provide dozens of items to the LLM for comparison (I only have 12GB VRAM lol). The simple structure of the data is handled well by smaller models such as qwen3:4b.
-
-For an example of our current prompt data structure see [example-context-data.json](./example-context-data.json).
-
----
-
-Whether you're interested in OSRS trading, exploring AI-assisted development workflows, or learning about production Go services, this project offers a comprehensive example of how these technologies can work together to create something both useful and educational.
-
-
-*Happy flipping! 🪙*
 

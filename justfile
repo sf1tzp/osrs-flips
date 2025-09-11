@@ -5,16 +5,13 @@ build:
     go build -o osrs-flips-bot cmd/bot/main.go
     nerdctl build -t osrs-flips-bot:latest .
 
-run *ARGS:
-    go run cmd/main.go {{ARGS}}
+# Run a specific job (example with "Tempting Trades Under 1M")
+run JOB_NAME:
+    go run cmd/main.go -job="{{JOB_NAME}}"
 
 # Run all enabled jobs
 run-all:
     go run cmd/main.go -all
-
-# Run a specific job (example with "Tempting Trades Under 1M")
-run-job JOB_NAME:
-    go run cmd/main.go -job="{{JOB_NAME}}"
 
 # Show help for CLI options
 run-help:
