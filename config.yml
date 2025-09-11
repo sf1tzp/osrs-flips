@@ -41,12 +41,11 @@ jobs:
       limit: 500 # max items to query osrs volume api for
 
       # volume api filters
-      volume_1h_min: 20
-
+      # volume_1h_min: 20
       # Sort after volume filters for final ranking
       sort_by_after_volume: "volume_1h"
     output:
-      max_items: 25 # max items to pass into llm
+      max_items: 20 # max items to pass into llm
     model:
       name: qwen3:8b
       num_ctx: 18000
@@ -58,19 +57,19 @@ jobs:
     filters:
       margin_pct_min: 3
       insta_sell_price_min: 600000
-      insta_sell_price_max: 3500000
-      max_hours_since_update: 1
+      insta_sell_price_max: 4500000
+      # max_hours_since_update: 1
       sort_by_after_price: "margin_gp"
       sort_desc: true
       limit: 500
       volume_1h_min: 20
-      sort_by_after_volume: "margin_gp"
+      sort_by_after_volume: "margin_pct"
     output:
-      max_items: 25 # max items to pass into llm
+      max_items: 20 # max items to pass into llm
     model:
-      name: qwen3:4b
+      name: qwen3:8b
       num_ctx: 18000
-      temperature: 0.5
+      temperature: 0.9
 
   - name: "trade-limited"
     description: "Viable margins on items with daily trade limits"
@@ -84,9 +83,9 @@ jobs:
       sort_desc: true
       limit: 500
       volume_20m_min: 20
-      sort_by_after_volume: "volume_20m"
+      sort_by_after_volume: "margin_pct"
     output:
-      max_items: 25 # max items to pass into llm
+      max_items: 20 # max items to pass into llm
     model:
       name: qwen3:8b
       num_ctx: 18000
@@ -97,12 +96,11 @@ jobs:
     enabled: true
     filters:
       margin_pct_min: 3
-      max_hours_since_update: 1
       sort_by_after_price: "margin_gp"
       sort_desc: true
       limit: 500
       volume_20m_min: 50
-      sort_by_after_volume: "volume_20m"
+      sort_by_after_volume: "margin_pct"
     output:
       max_items: 20 # max items to pass into llm
     model:
