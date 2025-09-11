@@ -107,12 +107,10 @@ func (e *Executor) loadSystemPrompt() error {
 	// main prompt + signals section + example section
 	e.systemPrompt = fmt.Sprintf(`%s
 
-## Signals
 <signals>
 %s
 </signals>
 
-## Examples
 <example rating="good" reason="Wiki links and concise, expressive formatting. Includes the latest pricing as 'Strategy' and provides a timeframe estimate">
 %s
 </example>

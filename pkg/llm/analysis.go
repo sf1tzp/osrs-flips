@@ -436,7 +436,7 @@ func FormatItemsForAnalysisV2(items []osrs.ItemData, maxItems int) string {
 	// TODO: make this configurable or only when run via cli
 	// And/or have the bot attach the file to it's message
 	// Save to file with timestamp in output/data/ directory
-	if false {
+	if true {
 		timestamp := time.Now().Format("2006-01-02T15-04-05")
 		filename := fmt.Sprintf("output/data/analysis_v2-%s.json", timestamp)
 
