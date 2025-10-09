@@ -170,6 +170,9 @@ func (a *Analyzer) ApplyFilter(opts FilterOptions, verbose bool) ([]ItemData, er
 
 	// Apply filters
 	for _, item := range a.items {
+		if item.ItemID == 13190 { // old school bond, requires additional tax
+			continue
+		}
 		if a.passesFilter(item, opts) {
 			filtered = append(filtered, item)
 		}
