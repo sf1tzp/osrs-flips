@@ -131,8 +131,8 @@ func main() {
 	// Process results
 	for _, result := range results {
 		// Print to terminal
-		terminalOutput := formatter.FormatForTerminal(result)
-		fmt.Print(terminalOutput)
+		// terminalOutput := formatter.FormatForTerminal(result)
+		// fmt.Print(terminalOutput)
 
 		// Save to markdown file if successful
 		if result.Success {
@@ -143,6 +143,7 @@ func main() {
 			// Clean filename
 			filename = filepath.Clean(filename)
 			filename = fmt.Sprintf("output/%s", filename)
+			filename2 := fmt.Sprintf("output/current-%s.md", result.JobName)
 
 			// Create output directory if it doesn't exist
 			if err := os.MkdirAll("output", 0755); err != nil {
@@ -155,6 +156,12 @@ func main() {
 				log.Printf("Failed to write markdown file %s: %v", filename, err)
 			} else {
 				fmt.Printf("📄 Results saved to: %s\n", filename)
+			}
+
+			if err := os.WriteFile(filename2, []byte(markdownOutput), 0644); err != nil {
+				log.Printf("Failed to write markdown file %s: %v", filename2, err)
+			} else {
+				fmt.Printf("📄 Results saved to: %s\n", filename2)
 			}
 		}
 	}

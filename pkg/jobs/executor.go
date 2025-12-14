@@ -244,6 +244,7 @@ func (e *Executor) ExecuteJobWithResult(ctx context.Context, jobName string) (*J
 	}
 
 	// Limit items for output
+	// TODO: Apply some more logical filtering methods, like items that didn't have an insta buy in the last hour,
 	if jobConfig.Output.MaxItems > 0 && len(items) > jobConfig.Output.MaxItems {
 		items = items[:jobConfig.Output.MaxItems]
 	}
