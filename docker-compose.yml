@@ -16,11 +16,11 @@ services:
     # Mount config files as volumes
     volumes:
       - ./config.yml:/app/config.yml:ro
-      - ./prompt.md:/app/prompt.md:ro
-      - ./signals.md:/app/signals.md:ro
-      - ./a-good-example-output.md:/app/a-good-example-output.md:ro
-      - ./a-bad-example-output-no-links.md:/app/a-bad-example-output-no-links.md:ro
-      - ./a-bad-example-output-table.md:/app/a-bad-example-output-table.md:ro
+      - ./prompt_context/prompt.md:/app/prompt.md:ro
+      - ./prompt_context/signals.md:/app/signals.md:ro
+      - ./prompt_context/a-good-example-output.md:/app/a-good-example-output.md:ro
+      - ./prompt_context/a-bad-example-output-no-links.md:/app/a-bad-example-output-no-links.md:ro
+      - ./prompt_context/a-bad-example-output-table.md:/app/a-bad-example-output-table.md:ro
 
     # Health check
     healthcheck:
