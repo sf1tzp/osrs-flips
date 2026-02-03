@@ -18,12 +18,18 @@ import (
 const VERSION = "0.0.1"
 
 var (
-	backfillMode   = flag.Bool("backfill", false, "Run historical backfill instead of continuous polling")
-	backfillOnly   = flag.String("backfill-bucket", "", "Backfill only specific bucket size (5m, 1h, 24h)")
-	gapFillMode    = flag.Bool("gap-fill", false, "Run gap filling to repair missing buckets within retention windows")
-	gapFillBucket  = flag.String("gap-fill-bucket", "", "Gap fill only specific bucket size (5m, 1h, 24h)")
-	gapFillItems   = flag.Int("gap-fill-items", 150, "Maximum items to process per gap fill run")
-	skipItemSync   = flag.Bool("skip-item-sync", false, "Skip initial item metadata sync from API")
+	// Legacy modes (deprecated)
+	backfillMode  = flag.Bool("backfill", false, "[DEPRECATED] Run historical backfill only. Use default combined mode instead.")
+	backfillOnly  = flag.String("backfill-bucket", "", "[DEPRECATED] Backfill only specific bucket size (5m, 1h, 24h)")
+	gapFillMode   = flag.Bool("gap-fill", false, "[DEPRECATED] Run gap filling only. Use default combined mode instead.")
+	gapFillBucket = flag.String("gap-fill-bucket", "", "[DEPRECATED] Gap fill only specific bucket size (5m, 1h, 24h)")
+	gapFillItems  = flag.Int("gap-fill-items", 150, "[DEPRECATED] Maximum items to process per gap fill run")
+
+	// Current options
+	skipItemSync      = flag.Bool("skip-item-sync", false, "Skip initial item metadata sync from API")
+	skipBackfill      = flag.Bool("skip-backfill", false, "Skip background sync (run poller only)")
+	syncInterval      = flag.Duration("sync-interval", 30*time.Minute, "Background sync interval")
+	syncItemsPerCycle = flag.Int("sync-items-per-cycle", 100, "Max items to sync per bucket per cycle")
 )
 
 func main() {
@@ -126,7 +132,9 @@ func main() {
 	}()
 
 	if *backfillMode {
-		// Run backfill mode
+		// Legacy backfill mode (deprecated)
+		logger.WithComponent("collector").Warn("--backfill flag is deprecated. Use default combined mode instead.")
+
 		backfillerConfig := collector.DefaultBackfillerConfig()
 		if *backfillOnly != "" {
 			backfillerConfig.BucketSizes = []string{*backfillOnly}
@@ -143,7 +151,9 @@ func main() {
 			logger.WithComponent("collector").WithError(err).Error("backfill failed")
 		}
 	} else if *gapFillMode {
-		// Run gap fill mode
+		// Legacy gap fill mode (deprecated)
+		logger.WithComponent("collector").Warn("--gap-fill flag is deprecated. Use default combined mode instead.")
+
 		gapFillerConfig := collector.DefaultGapFillerConfig()
 		gapFillerConfig.ItemsPerRun = *gapFillItems
 		if *gapFillBucket != "" {
@@ -162,32 +172,68 @@ func main() {
 			logger.WithComponent("collector").WithError(err).Error("gap fill failed")
 		}
 	} else {
-		// Run continuous polling mode
-		pollerConfig := collector.DefaultPollerConfig()
-		if intervalStr := os.Getenv("POLL_INTERVAL_SECONDS"); intervalStr != "" {
-			if interval, err := time.ParseDuration(intervalStr + "s"); err == nil {
-				pollerConfig.Interval = interval
-			}
-		}
-
-		poller := collector.NewPoller(osrsClient, repo, pollerConfig, logger)
-		poller.Start()
-
-		logger.WithComponent("collector").WithFields(map[string]interface{}{
-			"poll_interval": pollerConfig.Interval.String(),
-		}).Info("collector fully initialized, polling started")
-
-		// Wait for context cancellation
-		<-runCtx.Done()
-
-		// Stop poller
-		poller.Stop()
+		// Combined mode: Poller + BackgroundSync running concurrently
+		runCombinedMode(runCtx, osrsClient, repo, logger)
 	}
 
 	// Close database connection
 	db.Close()
 
 	logger.WithComponent("collector").Info("collector shutdown complete")
+}
+
+func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collector.Repository, logger *logging.Logger) {
+	// Configure poller
+	pollerConfig := collector.DefaultPollerConfig()
+	if intervalStr := os.Getenv("POLL_INTERVAL_SECONDS"); intervalStr != "" {
+		if interval, err := time.ParseDuration(intervalStr + "s"); err == nil {
+			pollerConfig.Interval = interval
+		}
+	}
+
+	// Configure background sync
+	syncConfig := collector.DefaultBackgroundSyncConfig()
+	syncConfig.RunInterval = *syncInterval
+	syncConfig.ItemsPerCycle = *syncItemsPerCycle
+
+	// Create components
+	poller := collector.NewPoller(osrsClient, repo, pollerConfig, logger)
+	var backgroundSync *collector.BackgroundSync
+	if !*skipBackfill {
+		backgroundSync = collector.NewBackgroundSync(osrsClient, repo, syncConfig, logger, nil)
+	}
+
+	// Start poller
+	poller.Start()
+	logger.WithComponent("collector").WithFields(map[string]interface{}{
+		"poll_interval": pollerConfig.Interval.String(),
+	}).Info("poller started")
+
+	// Start background sync if enabled
+	if backgroundSync != nil {
+		backgroundSync.Start()
+		logger.WithComponent("collector").WithFields(map[string]interface{}{
+			"sync_interval":   syncConfig.RunInterval.String(),
+			"items_per_cycle": syncConfig.ItemsPerCycle,
+			"bucket_sizes":    syncConfig.BucketSizes,
+		}).Info("background sync started")
+	}
+
+	logger.WithComponent("collector").Info("combined mode fully initialized")
+
+	// Wait for shutdown signal
+	<-ctx.Done()
+
+	// Graceful shutdown
+	logger.WithComponent("collector").Info("stopping components...")
+
+	poller.Stop()
+	logger.WithComponent("collector").Info("poller stopped")
+
+	if backgroundSync != nil {
+		backgroundSync.Stop()
+		logger.WithComponent("collector").Info("background sync stopped")
+	}
 }
 
 func init() {
