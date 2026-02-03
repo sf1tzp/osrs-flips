@@ -92,7 +92,7 @@ func (r *Repository) GetObservationCount(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-// PriceBucket represents a row in the price_buckets table.
+// PriceBucket represents a row in the price_buckets_* tables.
 type PriceBucket struct {
 	ItemID          int
 	BucketStart     time.Time
@@ -104,28 +104,65 @@ type PriceBucket struct {
 	Source          string // "api" or "computed"
 }
 
+// bucketTableName returns the table name for a given bucket size.
+func bucketTableName(bucketSize string) string {
+	switch bucketSize {
+	case "5m":
+		return "price_buckets_5m"
+	case "1h":
+		return "price_buckets_1h"
+	case "24h":
+		return "price_buckets_24h"
+	default:
+		return "price_buckets_5m" // fallback
+	}
+}
+
 // InsertPriceBuckets batch inserts price buckets using upsert logic.
+// Routes to the appropriate table based on bucket size.
 // On conflict, updates if the new data is from API (preferred over computed).
 func (r *Repository) InsertPriceBuckets(ctx context.Context, buckets []PriceBucket) (int64, error) {
 	if len(buckets) == 0 {
 		return 0, nil
 	}
 
-	// Use batch insert with ON CONFLICT for upsert
+	// Group buckets by size for efficient batch operations
+	bySize := make(map[string][]PriceBucket)
+	for _, b := range buckets {
+		bySize[b.BucketSize] = append(bySize[b.BucketSize], b)
+	}
+
+	var totalInserted int64
+	for bucketSize, sizeBuckets := range bySize {
+		tableName := bucketTableName(bucketSize)
+		inserted, err := r.insertBucketsToTable(ctx, tableName, sizeBuckets)
+		if err != nil {
+			return totalInserted, fmt.Errorf("insert to %s: %w", tableName, err)
+		}
+		totalInserted += inserted
+	}
+
+	return totalInserted, nil
+}
+
+// insertBucketsToTable inserts buckets to a specific table.
+func (r *Repository) insertBucketsToTable(ctx context.Context, tableName string, buckets []PriceBucket) (int64, error) {
 	batch := &pgx.Batch{}
 	for _, b := range buckets {
-		batch.Queue(`
-			INSERT INTO price_buckets (item_id, bucket_start, bucket_size, avg_high_price, high_price_volume, avg_low_price, low_price_volume, source)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (item_id, bucket_start, bucket_size) DO UPDATE SET
+		// Note: table name is from our controlled bucketTableName(), not user input
+		query := fmt.Sprintf(`
+			INSERT INTO %s (item_id, bucket_start, avg_high_price, high_price_volume, avg_low_price, low_price_volume, source)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			ON CONFLICT (item_id, bucket_start) DO UPDATE SET
 				avg_high_price = EXCLUDED.avg_high_price,
 				high_price_volume = EXCLUDED.high_price_volume,
 				avg_low_price = EXCLUDED.avg_low_price,
 				low_price_volume = EXCLUDED.low_price_volume,
 				source = EXCLUDED.source,
 				ingested_at = NOW()
-			WHERE price_buckets.source != 'api' OR EXCLUDED.source = 'api'
-		`, b.ItemID, b.BucketStart, b.BucketSize, b.AvgHighPrice, b.HighPriceVolume, b.AvgLowPrice, b.LowPriceVolume, b.Source)
+			WHERE %s.source != 'api' OR EXCLUDED.source = 'api'
+		`, tableName, tableName)
+		batch.Queue(query, b.ItemID, b.BucketStart, b.AvgHighPrice, b.HighPriceVolume, b.AvgLowPrice, b.LowPriceVolume, b.Source)
 	}
 
 	br := r.pool.SendBatch(ctx, batch)
@@ -143,10 +180,11 @@ func (r *Repository) InsertPriceBuckets(ctx context.Context, buckets []PriceBuck
 	return inserted, nil
 }
 
-// GetBucketCount returns the total number of buckets.
-func (r *Repository) GetBucketCount(ctx context.Context) (int64, error) {
+// GetBucketCount returns the total number of buckets for a given bucket size.
+func (r *Repository) GetBucketCount(ctx context.Context, bucketSize string) (int64, error) {
+	tableName := bucketTableName(bucketSize)
 	var count int64
-	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM price_buckets`).Scan(&count)
+	err := r.pool.QueryRow(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM %s`, tableName)).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count buckets: %w", err)
 	}
@@ -155,10 +193,11 @@ func (r *Repository) GetBucketCount(ctx context.Context) (int64, error) {
 
 // GetBackfilledItems returns item IDs that have been backfilled for a given bucket size.
 func (r *Repository) GetBackfilledItems(ctx context.Context, bucketSize string) (map[int]bool, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT DISTINCT item_id FROM price_buckets
-		WHERE bucket_size = $1 AND source = 'api'
-	`, bucketSize)
+	tableName := bucketTableName(bucketSize)
+	rows, err := r.pool.Query(ctx, fmt.Sprintf(`
+		SELECT DISTINCT item_id FROM %s
+		WHERE source = 'api'
+	`, tableName))
 	if err != nil {
 		return nil, fmt.Errorf("query backfilled items: %w", err)
 	}
