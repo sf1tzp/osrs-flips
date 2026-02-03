@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"osrs-flipping/pkg/osrs"
 )
 
 // PriceObservation represents a row in the price_observations table.
@@ -307,4 +309,142 @@ func (r *Repository) GetItemsWithGaps(ctx context.Context, bucketSize string, re
 		items = append(items, itemID)
 	}
 	return items, rows.Err()
+}
+
+// Item represents a row in the items table.
+type Item struct {
+	ItemID     int
+	Name       string
+	Examine    string
+	Members    bool
+	BuyLimit   *int
+	HighAlch   *int
+	LowAlch    *int
+	GEValue    *int
+	Icon       string
+	PollVolume bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// UpsertItems batch upserts items from API mapping data.
+// Returns the number of rows affected.
+func (r *Repository) UpsertItems(ctx context.Context, mappings []osrs.ItemMapping) (int64, error) {
+	if len(mappings) == 0 {
+		return 0, nil
+	}
+
+	batch := &pgx.Batch{}
+	for _, m := range mappings {
+		query := `
+			INSERT INTO items (item_id, name, examine, members, buy_limit, high_alch, low_alch, ge_value, icon, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+			ON CONFLICT (item_id) DO UPDATE SET
+				name = EXCLUDED.name,
+				examine = EXCLUDED.examine,
+				members = EXCLUDED.members,
+				buy_limit = EXCLUDED.buy_limit,
+				high_alch = EXCLUDED.high_alch,
+				low_alch = EXCLUDED.low_alch,
+				ge_value = EXCLUDED.ge_value,
+				icon = EXCLUDED.icon,
+				updated_at = NOW()
+		`
+		// Convert zero values to nil for optional fields
+		var buyLimit, highAlch, lowAlch, geValue *int
+		if m.BuyLimit > 0 {
+			buyLimit = &m.BuyLimit
+		}
+		if m.HighAlch > 0 {
+			highAlch = &m.HighAlch
+		}
+		if m.LowAlch > 0 {
+			lowAlch = &m.LowAlch
+		}
+		if m.Value > 0 {
+			geValue = &m.Value
+		}
+		batch.Queue(query, m.ID, m.Name, m.Examine, m.Members, buyLimit, highAlch, lowAlch, geValue, m.Icon)
+	}
+
+	br := r.pool.SendBatch(ctx, batch)
+	defer br.Close()
+
+	var affected int64
+	for range mappings {
+		ct, err := br.Exec()
+		if err != nil {
+			return affected, fmt.Errorf("batch exec: %w", err)
+		}
+		affected += ct.RowsAffected()
+	}
+
+	return affected, nil
+}
+
+// GetItemsToPollVolume returns item IDs that have poll_volume=true.
+func (r *Repository) GetItemsToPollVolume(ctx context.Context) ([]int, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT item_id FROM items WHERE poll_volume = TRUE ORDER BY item_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query poll volume items: %w", err)
+	}
+	defer rows.Close()
+
+	var items []int
+	for rows.Next() {
+		var itemID int
+		if err := rows.Scan(&itemID); err != nil {
+			return nil, fmt.Errorf("scan item id: %w", err)
+		}
+		items = append(items, itemID)
+	}
+	return items, rows.Err()
+}
+
+// SetPollVolume sets the poll_volume flag for specified item IDs.
+func (r *Repository) SetPollVolume(ctx context.Context, itemIDs []int, pollVolume bool) (int64, error) {
+	if len(itemIDs) == 0 {
+		return 0, nil
+	}
+
+	ct, err := r.pool.Exec(ctx, `
+		UPDATE items SET poll_volume = $1, updated_at = NOW()
+		WHERE item_id = ANY($2)
+	`, pollVolume, itemIDs)
+	if err != nil {
+		return 0, fmt.Errorf("update poll volume: %w", err)
+	}
+	return ct.RowsAffected(), nil
+}
+
+// GetItemCount returns the total number of items in the items table.
+func (r *Repository) GetItemCount(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM items`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count items: %w", err)
+	}
+	return count, nil
+}
+
+// GetItem returns a single item by ID.
+func (r *Repository) GetItem(ctx context.Context, itemID int) (*Item, error) {
+	var item Item
+	err := r.pool.QueryRow(ctx, `
+		SELECT item_id, name, examine, members, buy_limit, high_alch, low_alch, ge_value, icon, poll_volume, created_at, updated_at
+		FROM items WHERE item_id = $1
+	`, itemID).Scan(
+		&item.ItemID, &item.Name, &item.Examine, &item.Members,
+		&item.BuyLimit, &item.HighAlch, &item.LowAlch, &item.GEValue,
+		&item.Icon, &item.PollVolume, &item.CreatedAt, &item.UpdatedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query item: %w", err)
+	}
+	return &item, nil
 }

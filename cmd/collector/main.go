@@ -23,6 +23,7 @@ var (
 	gapFillMode    = flag.Bool("gap-fill", false, "Run gap filling to repair missing buckets within retention windows")
 	gapFillBucket  = flag.String("gap-fill-bucket", "", "Gap fill only specific bucket size (5m, 1h, 24h)")
 	gapFillItems   = flag.Int("gap-fill-items", 150, "Maximum items to process per gap fill run")
+	skipItemSync   = flag.Bool("skip-item-sync", false, "Skip initial item metadata sync from API")
 )
 
 func main() {
@@ -98,6 +99,20 @@ func main() {
 
 	// Initialize repository
 	repo := collector.NewRepository(db.Pool)
+
+	// Sync item metadata from API (unless skipped)
+	if !*skipItemSync {
+		itemSyncerConfig := collector.DefaultItemSyncerConfig()
+		itemSyncerConfig.SyncInterval = 0 // Disable periodic sync for now; just sync on start
+		itemSyncer := collector.NewItemSyncer(osrsClient, repo, itemSyncerConfig, logger)
+
+		logger.WithComponent("collector").Info("syncing item metadata from API")
+		syncCtx, syncCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		if err := itemSyncer.Start(syncCtx); err != nil {
+			logger.WithComponent("collector").WithError(err).Warn("item sync failed, continuing without item metadata")
+		}
+		syncCancel()
+	}
 
 	// Set up graceful shutdown
 	runCtx, runCancel := context.WithCancel(context.Background())
