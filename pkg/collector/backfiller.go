@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"osrs-flipping/pkg/logging"
 	"osrs-flipping/pkg/osrs"
 )
@@ -12,7 +14,7 @@ import (
 // BackfillerConfig configures the backfill service.
 type BackfillerConfig struct {
 	BucketSizes   []string      // Bucket sizes to backfill (e.g., ["5m", "1h", "24h"])
-	RateLimit     time.Duration // Delay between API calls (default: 100ms)
+	RateLimit     time.Duration // Minimum delay between API calls (default: 100ms)
 	BatchSize     int           // Items to process before logging progress (default: 100)
 	MaxConcurrent int           // Max concurrent API requests (default: 1)
 }
@@ -29,10 +31,11 @@ func DefaultBackfillerConfig() *BackfillerConfig {
 
 // Backfiller fetches historical timeseries data and populates price_buckets.
 type Backfiller struct {
-	client *osrs.Client
-	repo   *Repository
-	config *BackfillerConfig
-	logger *logging.Logger
+	client  *osrs.Client
+	repo    *Repository
+	config  *BackfillerConfig
+	logger  *logging.Logger
+	limiter *rate.Limiter
 
 	mu       sync.Mutex
 	running  bool
@@ -56,12 +59,18 @@ func NewBackfiller(client *osrs.Client, repo *Repository, config *BackfillerConf
 	if config == nil {
 		config = DefaultBackfillerConfig()
 	}
+
+	// Create rate limiter: 1 request per config.RateLimit duration
+	// This enforces a global rate limit across all concurrent workers
+	limit := rate.Every(config.RateLimit)
+
 	return &Backfiller{
-		client: client,
-		repo:   repo,
-		config: config,
-		logger: logger,
-		stopCh: make(chan struct{}),
+		client:  client,
+		repo:    repo,
+		config:  config,
+		logger:  logger,
+		stopCh:  make(chan struct{}),
+		limiter: rate.NewLimiter(limit, 1), // burst=1 for strict rate limiting
 	}
 }
 
@@ -94,6 +103,7 @@ func (b *Backfiller) Run(ctx context.Context) error {
 	b.logger.WithComponent("backfiller").WithFields(map[string]interface{}{
 		"total_items":  len(items),
 		"bucket_sizes": b.config.BucketSizes,
+		"rate_limit":   b.config.RateLimit.String(),
 	}).Info("starting backfill")
 
 	// Process each bucket size
@@ -213,15 +223,17 @@ func (b *Backfiller) backfillBucketSize(ctx context.Context, items []int, bucket
 				"percent":     float64(i+1) / float64(len(toBackfill)) * 100,
 			}).Info("backfill progress")
 		}
-
-		// Rate limiting
-		time.Sleep(b.config.RateLimit)
 	}
 
 	return nil
 }
 
 func (b *Backfiller) backfillItem(ctx context.Context, itemID int, bucketSize string) error {
+	// Wait for rate limiter token (enforces global rate limit)
+	if err := b.limiter.Wait(ctx); err != nil {
+		return err
+	}
+
 	// Fetch timeseries from API
 	resp, err := b.client.GetTimeseriesTyped(ctx, itemID, bucketSize)
 	if err != nil {
