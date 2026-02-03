@@ -11,8 +11,9 @@ import (
 
 // Analyzer is the main class equivalent to OSRSItemFilter in Python
 type Analyzer struct {
-	client *Client
-	items  []ItemData
+	client     *Client
+	items      []ItemData
+	dataSource DataSource // Optional: if set, LoadDataFromSource uses this
 }
 
 // NewAnalyzer creates a new OSRS analyzer instance
@@ -21,6 +22,25 @@ func NewAnalyzer(userAgent string) *Analyzer {
 		client: NewClient(userAgent),
 		items:  make([]ItemData, 0),
 	}
+}
+
+// NewAnalyzerWithDataSource creates an analyzer that uses the given data source.
+func NewAnalyzerWithDataSource(dataSource DataSource, userAgent string) *Analyzer {
+	return &Analyzer{
+		client:     NewClient(userAgent),
+		items:      make([]ItemData, 0),
+		dataSource: dataSource,
+	}
+}
+
+// SetDataSource sets the data source for this analyzer.
+func (a *Analyzer) SetDataSource(ds DataSource) {
+	a.dataSource = ds
+}
+
+// GetClient returns the underlying API client.
+func (a *Analyzer) GetClient() *Client {
+	return a.client
 }
 
 // LoadData fetches and merges item mappings with latest prices
@@ -52,6 +72,78 @@ func (a *Analyzer) LoadData(ctx context.Context, forceReload bool) error {
 	a.computeDerivedColumns()
 
 	fmt.Printf("✅ Loaded %d items with price data\n", len(a.items))
+	return nil
+}
+
+// LoadDataFromSource loads data using the configured data source.
+// If no data source is set, falls back to LoadData (API).
+func (a *Analyzer) LoadDataFromSource(ctx context.Context, forceReload bool) error {
+	if a.dataSource == nil {
+		return a.LoadData(ctx, forceReload)
+	}
+
+	if !forceReload && len(a.items) > 0 {
+		fmt.Println("Data already loaded. Use forceReload=true to refresh.")
+		return nil
+	}
+
+	fmt.Printf("Loading data from %s...\n", a.dataSource.Name())
+
+	items, err := a.dataSource.LoadPrices(ctx)
+	if err != nil {
+		return fmt.Errorf("loading prices from data source: %w", err)
+	}
+
+	a.items = items
+	fmt.Printf("✅ Loaded %d items with price data from %s\n", len(a.items), a.dataSource.Name())
+	return nil
+}
+
+// LoadVolumeDataFromSource loads volume data using the configured data source.
+// If no data source is set, falls back to LoadVolumeData (API).
+func (a *Analyzer) LoadVolumeDataFromSource(ctx context.Context, itemIDs []int, maxItems int) error {
+	if a.dataSource == nil {
+		return a.LoadVolumeData(ctx, itemIDs, maxItems)
+	}
+
+	// Filter items to only those requested
+	var targetItems []ItemData
+	if len(itemIDs) > 0 {
+		idSet := make(map[int]bool)
+		for _, id := range itemIDs {
+			idSet[id] = true
+		}
+		for i := range a.items {
+			if idSet[a.items[i].ItemID] {
+				targetItems = append(targetItems, a.items[i])
+			}
+		}
+	} else {
+		targetItems = a.items
+	}
+
+	if maxItems > 0 && len(targetItems) > maxItems {
+		targetItems = targetItems[:maxItems]
+	}
+
+	fmt.Printf("Loading volume data for %d items from %s...\n", len(targetItems), a.dataSource.Name())
+
+	if err := a.dataSource.LoadVolumeData(ctx, targetItems, maxItems); err != nil {
+		return fmt.Errorf("loading volume from data source: %w", err)
+	}
+
+	// Update the original items with the volume data
+	itemMap := make(map[int]*ItemData)
+	for i := range targetItems {
+		itemMap[targetItems[i].ItemID] = &targetItems[i]
+	}
+	for i := range a.items {
+		if updated, ok := itemMap[a.items[i].ItemID]; ok {
+			a.items[i] = *updated
+		}
+	}
+
+	fmt.Printf("✅ Loaded volume data for %d items\n", len(targetItems))
 	return nil
 }
 
