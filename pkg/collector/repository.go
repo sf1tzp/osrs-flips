@@ -232,3 +232,79 @@ func (r *Repository) GetDistinctItemIDs(ctx context.Context) ([]int, error) {
 	}
 	return items, rows.Err()
 }
+
+// GetItemsWithGaps returns item IDs that have gaps in their bucket data.
+// Items are prioritized by recent observation activity.
+// retention=0 means no retention limit (check all time).
+func (r *Repository) GetItemsWithGaps(ctx context.Context, bucketSize string, retention time.Duration, limit int) ([]int, error) {
+	tableName := bucketTableName(bucketSize)
+
+	// Calculate the retention window
+	var windowStart time.Time
+	if retention > 0 {
+		windowStart = time.Now().UTC().Add(-retention)
+	} else {
+		// For unlimited retention, use a reasonable lookback (1 year)
+		windowStart = time.Now().UTC().AddDate(-1, 0, 0)
+	}
+
+	// Calculate expected bucket interval
+	var interval string
+	switch bucketSize {
+	case "5m":
+		interval = "5 minutes"
+	case "1h":
+		interval = "1 hour"
+	case "24h":
+		interval = "24 hours"
+	default:
+		interval = "5 minutes"
+	}
+
+	// Query finds items with observations that are missing expected buckets.
+	// Prioritizes items with recent activity (most recent observation first).
+	// Uses a coverage check: items with fewer buckets than expected have gaps.
+	query := fmt.Sprintf(`
+		WITH active_items AS (
+			-- Items with recent observations, ordered by most recent activity
+			SELECT item_id, MAX(observed_at) as last_seen
+			FROM price_observations
+			WHERE observed_at > $1
+			GROUP BY item_id
+			ORDER BY last_seen DESC
+		),
+		bucket_counts AS (
+			-- Count actual buckets per item in the retention window
+			SELECT item_id, COUNT(*) as actual_buckets
+			FROM %s
+			WHERE bucket_start > $1
+			GROUP BY item_id
+		),
+		expected AS (
+			-- Calculate expected bucket count for the window
+			SELECT EXTRACT(EPOCH FROM (NOW() - $1::timestamptz)) / EXTRACT(EPOCH FROM $2::interval) as expected_buckets
+		)
+		SELECT a.item_id
+		FROM active_items a
+		LEFT JOIN bucket_counts b ON a.item_id = b.item_id
+		CROSS JOIN expected e
+		WHERE COALESCE(b.actual_buckets, 0) < e.expected_buckets * 0.9  -- Allow 10%% tolerance
+		LIMIT $3
+	`, tableName)
+
+	rows, err := r.pool.Query(ctx, query, windowStart, interval, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query items with gaps: %w", err)
+	}
+	defer rows.Close()
+
+	var items []int
+	for rows.Next() {
+		var itemID int
+		if err := rows.Scan(&itemID); err != nil {
+			return nil, fmt.Errorf("scan item id: %w", err)
+		}
+		items = append(items, itemID)
+	}
+	return items, rows.Err()
+}

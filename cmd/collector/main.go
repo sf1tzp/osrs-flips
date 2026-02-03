@@ -18,8 +18,11 @@ import (
 const VERSION = "0.0.1"
 
 var (
-	backfillMode = flag.Bool("backfill", false, "Run historical backfill instead of continuous polling")
-	backfillOnly = flag.String("backfill-bucket", "", "Backfill only specific bucket size (5m, 1h, 24h)")
+	backfillMode   = flag.Bool("backfill", false, "Run historical backfill instead of continuous polling")
+	backfillOnly   = flag.String("backfill-bucket", "", "Backfill only specific bucket size (5m, 1h, 24h)")
+	gapFillMode    = flag.Bool("gap-fill", false, "Run gap filling to repair missing buckets within retention windows")
+	gapFillBucket  = flag.String("gap-fill-bucket", "", "Gap fill only specific bucket size (5m, 1h, 24h)")
+	gapFillItems   = flag.Int("gap-fill-items", 150, "Maximum items to process per gap fill run")
 )
 
 func main() {
@@ -123,6 +126,25 @@ func main() {
 
 		if err := backfiller.Run(runCtx); err != nil && err != context.Canceled {
 			logger.WithComponent("collector").WithError(err).Error("backfill failed")
+		}
+	} else if *gapFillMode {
+		// Run gap fill mode
+		gapFillerConfig := collector.DefaultGapFillerConfig()
+		gapFillerConfig.ItemsPerRun = *gapFillItems
+		if *gapFillBucket != "" {
+			gapFillerConfig.BucketSizes = []string{*gapFillBucket}
+		}
+
+		gapFiller := collector.NewGapFiller(osrsClient, repo, gapFillerConfig, logger)
+
+		logger.WithComponent("collector").WithFields(map[string]interface{}{
+			"bucket_sizes":  gapFillerConfig.BucketSizes,
+			"items_per_run": gapFillerConfig.ItemsPerRun,
+			"rate_limit":    gapFillerConfig.RateLimit.String(),
+		}).Info("starting gap fill mode")
+
+		if err := gapFiller.Run(runCtx); err != nil && err != context.Canceled {
+			logger.WithComponent("collector").WithError(err).Error("gap fill failed")
 		}
 	} else {
 		// Run continuous polling mode
