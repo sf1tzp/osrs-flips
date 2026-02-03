@@ -38,3 +38,6 @@ bd sync               # Sync with git
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 
+## justfile
+
+This project contains a justfile which we use to run various common commands

@@ -48,3 +48,5 @@ vet:
 clean:
     rm -f osrs-flips osrs-flips-bot coverage.out coverage.html
 
+collector:
+    go run cmd/collector/main.go
