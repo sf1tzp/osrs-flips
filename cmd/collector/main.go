@@ -8,8 +8,10 @@ import (
 	"syscall"
 	"time"
 
+	"osrs-flipping/pkg/collector"
 	"osrs-flipping/pkg/database"
 	"osrs-flipping/pkg/logging"
+	"osrs-flipping/pkg/osrs"
 )
 
 const VERSION = "0.0.1"
@@ -32,6 +34,12 @@ func main() {
 	dbConfig, err := database.ConfigFromEnv()
 	if err != nil {
 		logger.WithComponent("collector").WithError(err).Fatal("failed to load database configuration")
+	}
+
+	// Get OSRS API user agent (required by RuneScape Wiki API)
+	userAgent := os.Getenv("OSRS_API_USER_AGENT")
+	if userAgent == "" {
+		logger.WithComponent("collector").Fatal("OSRS_API_USER_AGENT environment variable is required")
 	}
 
 	// Connect to database
@@ -69,18 +77,33 @@ func main() {
 	// Log connection pool stats
 	stats := db.Stats()
 	logger.WithComponent("collector").WithFields(map[string]interface{}{
-		"total_conns":   stats.TotalConns(),
-		"idle_conns":    stats.IdleConns(),
-		"acquired":      stats.AcquiredConns(),
-		"max_conns":     stats.MaxConns(),
+		"total_conns": stats.TotalConns(),
+		"idle_conns":  stats.IdleConns(),
+		"acquired":    stats.AcquiredConns(),
+		"max_conns":   stats.MaxConns(),
 	}).Info("database pool initialized")
 
-	// TODO: Initialize and start collector services
-	// - Polling service for /latest endpoint
-	// - Backfill service for /timeseries endpoint
-	// - Gap filling service
+	// Initialize OSRS API client
+	osrsClient := osrs.NewClient(userAgent)
 
-	logger.WithComponent("collector").Info("collector fully initialized, waiting for shutdown signal")
+	// Initialize repository
+	repo := collector.NewRepository(db.Pool)
+
+	// Configure and start poller
+	pollerConfig := collector.DefaultPollerConfig()
+	// Allow override via environment
+	if intervalStr := os.Getenv("POLL_INTERVAL_SECONDS"); intervalStr != "" {
+		if interval, err := time.ParseDuration(intervalStr + "s"); err == nil {
+			pollerConfig.Interval = interval
+		}
+	}
+
+	poller := collector.NewPoller(osrsClient, repo, pollerConfig, logger)
+	poller.Start()
+
+	logger.WithComponent("collector").WithFields(map[string]interface{}{
+		"poll_interval": pollerConfig.Interval.String(),
+	}).Info("collector fully initialized, polling started")
 
 	// Set up graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -89,6 +112,9 @@ func main() {
 	// Wait for shutdown signal
 	<-sigChan
 	logger.WithComponent("collector").Info("shutdown signal received, gracefully stopping...")
+
+	// Stop poller
+	poller.Stop()
 
 	// Close database connection
 	db.Close()
