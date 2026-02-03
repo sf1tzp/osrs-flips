@@ -11,6 +11,14 @@ import (
 	"osrs-flipping/pkg/osrs"
 )
 
+// RetentionPolicy defines retention limits for each bucket size.
+// Policies defined on database tables in: migrations/004_split_buckets_and_retention.up.sql
+var RetentionPolicy = map[string]time.Duration{
+	"5m":  7 * 24 * time.Hour,   // 7 days
+	"1h":  365 * 24 * time.Hour, // 1 year
+	"24h": 0,                    // forever (no limit)
+}
+
 // BackgroundSyncConfig configures the background sync service.
 type BackgroundSyncConfig struct {
 	BucketSizes   []string      // Bucket sizes to sync (default: ["5m", "1h", "24h"])

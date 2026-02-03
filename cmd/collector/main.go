@@ -18,14 +18,6 @@ import (
 const VERSION = "0.0.1"
 
 var (
-	// Legacy modes (deprecated)
-	backfillMode  = flag.Bool("backfill", false, "[DEPRECATED] Run historical backfill only. Use default combined mode instead.")
-	backfillOnly  = flag.String("backfill-bucket", "", "[DEPRECATED] Backfill only specific bucket size (5m, 1h, 24h)")
-	gapFillMode   = flag.Bool("gap-fill", false, "[DEPRECATED] Run gap filling only. Use default combined mode instead.")
-	gapFillBucket = flag.String("gap-fill-bucket", "", "[DEPRECATED] Gap fill only specific bucket size (5m, 1h, 24h)")
-	gapFillItems  = flag.Int("gap-fill-items", 150, "[DEPRECATED] Maximum items to process per gap fill run")
-
-	// Current options
 	skipItemSync      = flag.Bool("skip-item-sync", false, "Skip initial item metadata sync from API")
 	skipBackfill      = flag.Bool("skip-backfill", false, "Skip background sync (run poller only)")
 	syncInterval      = flag.Duration("sync-interval", 30*time.Minute, "Background sync interval")
@@ -131,50 +123,8 @@ func main() {
 		runCancel()
 	}()
 
-	if *backfillMode {
-		// Legacy backfill mode (deprecated)
-		logger.WithComponent("collector").Warn("--backfill flag is deprecated. Use default combined mode instead.")
-
-		backfillerConfig := collector.DefaultBackfillerConfig()
-		if *backfillOnly != "" {
-			backfillerConfig.BucketSizes = []string{*backfillOnly}
-		}
-
-		backfiller := collector.NewBackfiller(osrsClient, repo, backfillerConfig, logger)
-
-		logger.WithComponent("collector").WithFields(map[string]interface{}{
-			"bucket_sizes": backfillerConfig.BucketSizes,
-			"rate_limit":   backfillerConfig.RateLimit.String(),
-		}).Info("starting backfill mode")
-
-		if err := backfiller.Run(runCtx); err != nil && err != context.Canceled {
-			logger.WithComponent("collector").WithError(err).Error("backfill failed")
-		}
-	} else if *gapFillMode {
-		// Legacy gap fill mode (deprecated)
-		logger.WithComponent("collector").Warn("--gap-fill flag is deprecated. Use default combined mode instead.")
-
-		gapFillerConfig := collector.DefaultGapFillerConfig()
-		gapFillerConfig.ItemsPerRun = *gapFillItems
-		if *gapFillBucket != "" {
-			gapFillerConfig.BucketSizes = []string{*gapFillBucket}
-		}
-
-		gapFiller := collector.NewGapFiller(osrsClient, repo, gapFillerConfig, logger)
-
-		logger.WithComponent("collector").WithFields(map[string]interface{}{
-			"bucket_sizes":  gapFillerConfig.BucketSizes,
-			"items_per_run": gapFillerConfig.ItemsPerRun,
-			"rate_limit":    gapFillerConfig.RateLimit.String(),
-		}).Info("starting gap fill mode")
-
-		if err := gapFiller.Run(runCtx); err != nil && err != context.Canceled {
-			logger.WithComponent("collector").WithError(err).Error("gap fill failed")
-		}
-	} else {
-		// Combined mode: Poller + BackgroundSync running concurrently
-		runCombinedMode(runCtx, osrsClient, repo, logger)
-	}
+	// Run combined mode: Poller + BackgroundSync concurrently
+	runCombinedMode(runCtx, osrsClient, repo, logger)
 
 	// Close database connection
 	db.Close()

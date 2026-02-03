@@ -7,6 +7,26 @@ import (
 	"golang.org/x/time/rate"
 )
 
+func TestRetentionPolicy(t *testing.T) {
+	tests := []struct {
+		bucketSize string
+		want       time.Duration
+	}{
+		{"5m", 7 * 24 * time.Hour},
+		{"1h", 365 * 24 * time.Hour},
+		{"24h", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.bucketSize, func(t *testing.T) {
+			got := RetentionPolicy[tt.bucketSize]
+			if got != tt.want {
+				t.Errorf("RetentionPolicy[%q] = %v, want %v", tt.bucketSize, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDefaultBackgroundSyncConfig(t *testing.T) {
 	cfg := DefaultBackgroundSyncConfig()
 
