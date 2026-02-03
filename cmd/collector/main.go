@@ -18,10 +18,12 @@ import (
 const VERSION = "0.0.1"
 
 var (
-	skipItemSync      = flag.Bool("skip-item-sync", false, "Skip initial item metadata sync from API")
-	skipBackfill      = flag.Bool("skip-backfill", false, "Skip background sync (run poller only)")
-	syncInterval      = flag.Duration("sync-interval", 30*time.Minute, "Background sync interval")
-	syncItemsPerCycle = flag.Int("sync-items-per-cycle", 100, "Max items to sync per bucket per cycle")
+	skipItemSync        = flag.Bool("skip-item-sync", false, "Skip initial item metadata sync from API")
+	skipBackfill        = flag.Bool("skip-backfill", false, "Skip background sync (run poller only)")
+	syncInterval        = flag.Duration("sync-interval", 30*time.Minute, "Background sync interval")
+	syncItemsPerCycle   = flag.Int("sync-items-per-cycle", 100, "Max items to sync per bucket per cycle")
+	enableVolumePolling = flag.Bool("enable-volume-polling", false, "Enable volume polling for items with poll_volume=true")
+	volumePollInterval  = flag.Duration("volume-poll-interval", 5*time.Minute, "Volume polling interval")
 )
 
 func main() {
@@ -146,11 +148,19 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 	syncConfig.RunInterval = *syncInterval
 	syncConfig.ItemsPerCycle = *syncItemsPerCycle
 
+	// Configure volume poller
+	volumePollerConfig := collector.DefaultVolumePollerConfig()
+	volumePollerConfig.PollInterval = *volumePollInterval
+
 	// Create components
 	poller := collector.NewPoller(osrsClient, repo, pollerConfig, logger)
 	var backgroundSync *collector.BackgroundSync
 	if !*skipBackfill {
 		backgroundSync = collector.NewBackgroundSync(osrsClient, repo, syncConfig, logger, nil)
+	}
+	var volumePoller *collector.VolumePoller
+	if *enableVolumePolling {
+		volumePoller = collector.NewVolumePoller(osrsClient, repo, volumePollerConfig, logger, nil)
 	}
 
 	// Start poller
@@ -169,6 +179,15 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 		}).Info("background sync started")
 	}
 
+	// Start volume poller if enabled
+	if volumePoller != nil {
+		volumePoller.Start()
+		logger.WithComponent("collector").WithFields(map[string]interface{}{
+			"poll_interval": volumePollerConfig.PollInterval.String(),
+			"rate_limit":    volumePollerConfig.RateLimit.String(),
+		}).Info("volume poller started")
+	}
+
 	logger.WithComponent("collector").Info("combined mode fully initialized")
 
 	// Wait for shutdown signal
@@ -183,6 +202,11 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 	if backgroundSync != nil {
 		backgroundSync.Stop()
 		logger.WithComponent("collector").Info("background sync stopped")
+	}
+
+	if volumePoller != nil {
+		volumePoller.Stop()
+		logger.WithComponent("collector").Info("volume poller stopped")
 	}
 }
 
