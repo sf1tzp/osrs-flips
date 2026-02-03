@@ -429,6 +429,89 @@ func (r *Repository) GetItemCount(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+// GetItemsNeedingSync returns item IDs that need historical data sync.
+// This includes both:
+// - Items with no bucket data for the given bucket size (new items)
+// - Items with gaps (incomplete coverage) within the retention window
+// Items are prioritized by recent observation activity, then by item_id.
+// retention=0 means no retention limit (uses 1 year lookback).
+func (r *Repository) GetItemsNeedingSync(ctx context.Context, bucketSize string, retention time.Duration, limit int) ([]int, error) {
+	tableName := bucketTableName(bucketSize)
+
+	// Calculate the retention window
+	var windowStart time.Time
+	if retention > 0 {
+		windowStart = time.Now().UTC().Add(-retention)
+	} else {
+		// For unlimited retention, use a reasonable lookback (1 year)
+		windowStart = time.Now().UTC().AddDate(-1, 0, 0)
+	}
+
+	// Calculate expected bucket interval
+	var interval string
+	switch bucketSize {
+	case "5m":
+		interval = "5 minutes"
+	case "1h":
+		interval = "1 hour"
+	case "24h":
+		interval = "24 hours"
+	default:
+		interval = "5 minutes"
+	}
+
+	// Query finds items that need sync:
+	// 1. Source from items table (all known items)
+	// 2. Left join to bucket counts within retention window
+	// 3. Left join to price_observations for activity-based prioritization
+	// 4. Filter to items where actual_buckets < expected_buckets * 0.9 (10% tolerance)
+	// 5. Order by recent activity (nulls last), then by item_id for determinism
+	query := fmt.Sprintf(`
+		WITH bucket_counts AS (
+			-- Count actual buckets per item in the retention window
+			SELECT item_id, COUNT(*) as actual_buckets
+			FROM %s
+			WHERE bucket_start > $1
+			GROUP BY item_id
+		),
+		recent_activity AS (
+			-- Get most recent observation per item for prioritization
+			SELECT item_id, MAX(observed_at) as last_seen
+			FROM price_observations
+			WHERE observed_at > $1
+			GROUP BY item_id
+		),
+		expected AS (
+			-- Calculate expected bucket count for the window
+			SELECT EXTRACT(EPOCH FROM (NOW() - $1::timestamptz)) / EXTRACT(EPOCH FROM $2::interval) as expected_buckets
+		)
+		SELECT i.item_id
+		FROM items i
+		LEFT JOIN bucket_counts b ON i.item_id = b.item_id
+		LEFT JOIN recent_activity r ON i.item_id = r.item_id
+		CROSS JOIN expected e
+		WHERE COALESCE(b.actual_buckets, 0) < e.expected_buckets * 0.9
+		ORDER BY r.last_seen DESC NULLS LAST, i.item_id
+		LIMIT $3
+	`, tableName)
+
+	rows, err := r.pool.Query(ctx, query, windowStart, interval, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query items needing sync: %w", err)
+	}
+	defer rows.Close()
+
+	var items []int
+	for rows.Next() {
+		var itemID int
+		if err := rows.Scan(&itemID); err != nil {
+			return nil, fmt.Errorf("scan item id: %w", err)
+		}
+		items = append(items, itemID)
+	}
+	return items, rows.Err()
+}
+
 // GetItem returns a single item by ID.
 func (r *Repository) GetItem(ctx context.Context, itemID int) (*Item, error) {
 	var item Item
