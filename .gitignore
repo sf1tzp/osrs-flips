@@ -6,9 +6,8 @@
 *.dylib
 osrs-flips
 osrs-flips-bot
+osrs-flips-collector
 main
-collector
-!pkg/collector
 
 # Test binary, built with `go test -c`
 *.test

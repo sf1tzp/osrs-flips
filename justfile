@@ -1,9 +1,17 @@
 set dotenv-load
 
-build:
-    go build -o osrs-flips cmd/main.go
+# Build all binaries and images
+build: build-bot build-collector
+
+# Build bot binary and Docker image
+build-bot:
     go build -o osrs-flips-bot cmd/bot/main.go
-    nerdctl build -t osrs-flips-bot:latest .
+    nerdctl build -t osrs-flips-bot:latest -f Dockerfile .
+
+# Build collector binary and Docker image
+build-collector:
+    go build -o osrs-flips-collector cmd/collector/main.go
+    nerdctl build -t osrs-flips-collector:latest -f Dockerfile.collector .
 
 # Run a specific job (example with "Tempting Trades Under 1M")
 run JOB_NAME:
@@ -46,7 +54,7 @@ vet:
     go vet ./...
 
 clean:
-    rm -f osrs-flips osrs-flips-bot coverage.out coverage.html
+    rm -f osrs-flips osrs-flips-bot osrs-flips-collector coverage.out coverage.html
 
 collector:
     go run cmd/collector/main.go
