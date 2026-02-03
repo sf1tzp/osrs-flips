@@ -50,3 +50,7 @@ clean:
 
 collector:
     go run cmd/collector/main.go
+
+# Run collector in backfill mode (fetches historical data)
+backfill *ARGS:
+    go run cmd/collector/main.go -backfill {{ARGS}}

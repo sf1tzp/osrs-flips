@@ -123,3 +123,25 @@ func (c *Client) GetTimeseries(ctx context.Context, itemID int, timestep string)
 
 	return result, nil
 }
+
+// GetTimeseriesTyped fetches historical price/volume data with typed response.
+// timestep must be one of: "5m", "1h", "6h", "24h"
+// Returns up to 365 data points.
+func (c *Client) GetTimeseriesTyped(ctx context.Context, itemID int, timestep string) (*TimeseriesResponse, error) {
+	params := map[string]string{
+		"id":       strconv.Itoa(itemID),
+		"timestep": timestep,
+	}
+
+	data, err := c.makeAPIRequest(ctx, "/timeseries", params)
+	if err != nil {
+		return nil, fmt.Errorf("fetching timeseries for item %d: %w", itemID, err)
+	}
+
+	var response TimeseriesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("parsing timeseries response: %w", err)
+	}
+
+	return &response, nil
+}

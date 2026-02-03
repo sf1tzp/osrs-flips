@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -16,7 +17,13 @@ import (
 
 const VERSION = "0.0.1"
 
+var (
+	backfillMode = flag.Bool("backfill", false, "Run historical backfill instead of continuous polling")
+	backfillOnly = flag.String("backfill-bucket", "", "Backfill only specific bucket size (5m, 1h, 24h)")
+)
+
 func main() {
+	flag.Parse()
 	// Initialize logger (default to info/json for now)
 	logLevel := os.Getenv("LOG_LEVEL")
 	if logLevel == "" {
@@ -89,32 +96,56 @@ func main() {
 	// Initialize repository
 	repo := collector.NewRepository(db.Pool)
 
-	// Configure and start poller
-	pollerConfig := collector.DefaultPollerConfig()
-	// Allow override via environment
-	if intervalStr := os.Getenv("POLL_INTERVAL_SECONDS"); intervalStr != "" {
-		if interval, err := time.ParseDuration(intervalStr + "s"); err == nil {
-			pollerConfig.Interval = interval
-		}
-	}
-
-	poller := collector.NewPoller(osrsClient, repo, pollerConfig, logger)
-	poller.Start()
-
-	logger.WithComponent("collector").WithFields(map[string]interface{}{
-		"poll_interval": pollerConfig.Interval.String(),
-	}).Info("collector fully initialized, polling started")
-
 	// Set up graceful shutdown
+	runCtx, runCancel := context.WithCancel(context.Background())
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Wait for shutdown signal
-	<-sigChan
-	logger.WithComponent("collector").Info("shutdown signal received, gracefully stopping...")
+	go func() {
+		<-sigChan
+		logger.WithComponent("collector").Info("shutdown signal received, gracefully stopping...")
+		runCancel()
+	}()
 
-	// Stop poller
-	poller.Stop()
+	if *backfillMode {
+		// Run backfill mode
+		backfillerConfig := collector.DefaultBackfillerConfig()
+		if *backfillOnly != "" {
+			backfillerConfig.BucketSizes = []string{*backfillOnly}
+		}
+
+		backfiller := collector.NewBackfiller(osrsClient, repo, backfillerConfig, logger)
+
+		logger.WithComponent("collector").WithFields(map[string]interface{}{
+			"bucket_sizes": backfillerConfig.BucketSizes,
+			"rate_limit":   backfillerConfig.RateLimit.String(),
+		}).Info("starting backfill mode")
+
+		if err := backfiller.Run(runCtx); err != nil && err != context.Canceled {
+			logger.WithComponent("collector").WithError(err).Error("backfill failed")
+		}
+	} else {
+		// Run continuous polling mode
+		pollerConfig := collector.DefaultPollerConfig()
+		if intervalStr := os.Getenv("POLL_INTERVAL_SECONDS"); intervalStr != "" {
+			if interval, err := time.ParseDuration(intervalStr + "s"); err == nil {
+				pollerConfig.Interval = interval
+			}
+		}
+
+		poller := collector.NewPoller(osrsClient, repo, pollerConfig, logger)
+		poller.Start()
+
+		logger.WithComponent("collector").WithFields(map[string]interface{}{
+			"poll_interval": pollerConfig.Interval.String(),
+		}).Info("collector fully initialized, polling started")
+
+		// Wait for context cancellation
+		<-runCtx.Done()
+
+		// Stop poller
+		poller.Stop()
+	}
 
 	// Close database connection
 	db.Close()
