@@ -325,29 +325,35 @@ func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize 
 		windowStart = time.Now().UTC().AddDate(-1, 0, 0)
 	}
 
-	// Calculate bucket interval for generate_series
-	var interval string
+	// Calculate bucket interval and truncation unit for generate_series.
+	// The truncation must align to the bucket boundary so the API accepts the timestamps.
+	// 24h buckets must start at midnight UTC, 1h at the hour, 5m at the hour (divides evenly).
+	var interval, truncUnit string
 	switch bucketSize {
 	case "5m":
 		interval = "5 minutes"
+		truncUnit = "hour"
 	case "1h":
 		interval = "1 hour"
+		truncUnit = "hour"
 	case "24h":
 		interval = "24 hours"
+		truncUnit = "day"
 	default:
 		interval = "5 minutes"
+		truncUnit = "hour"
 	}
 
 	// generate_series enumerates all expected timestamps in the retention window.
 	// LEFT JOIN against actual bucket counts to find timestamps with insufficient data.
 	// We truncate windowStart down to the nearest bucket boundary for clean alignment.
-	// Note: tableName is from our controlled bucketTableName(), not user input.
+	// Note: tableName and truncUnit are from controlled code, not user input.
 	query := fmt.Sprintf(`
 		WITH expected_timestamps AS (
 			SELECT gs AS bucket_ts
 			FROM generate_series(
-				date_trunc('hour', $1::timestamptz),
-				date_trunc('hour', NOW()),
+				date_trunc('%s', $1::timestamptz),
+				date_trunc('%s', NOW()),
 				$2::interval
 			) AS gs
 			WHERE gs >= $1::timestamptz
@@ -365,7 +371,7 @@ func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize 
 		WHERE COALESCE(ac.item_count, 0) < $3
 		ORDER BY et.bucket_ts DESC
 		LIMIT $4
-	`, tableName)
+	`, truncUnit, truncUnit, tableName)
 
 	rows, err := r.pool.Query(ctx, query, windowStart, interval, minItemCount, limit)
 	if err != nil {
