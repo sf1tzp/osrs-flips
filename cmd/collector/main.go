@@ -24,6 +24,11 @@ var (
 	syncItemsPerCycle   = flag.Int("sync-items-per-cycle", 100, "Max items to sync per bucket per cycle")
 	enableVolumePolling = flag.Bool("enable-volume-polling", false, "Enable volume polling for items with poll_volume=true")
 	volumePollInterval  = flag.Duration("volume-poll-interval", 5*time.Minute, "Volume polling interval")
+
+	// Status command flags
+	showStatus    = flag.Bool("status", false, "Show sync status and exit")
+	statusBucket  = flag.String("bucket", "", "Bucket size to show status for (5m, 1h, 24h). If empty, shows all.")
+	showZeroItems = flag.Bool("show-zero-items", false, "List items with no data (use with --status)")
 )
 
 func main() {
@@ -63,6 +68,20 @@ func main() {
 	defer db.Close()
 
 	logger.WithComponent("collector").Info("connected to database")
+
+	// Handle --status command (early exit before migrations/service setup)
+	if *showStatus {
+		repo := collector.NewRepository(db.Pool)
+		syncStatus := NewSyncStatus(repo)
+
+		statusCtx, statusCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer statusCancel()
+
+		if err := syncStatus.PrintStatus(statusCtx, *statusBucket, *showZeroItems); err != nil {
+			logger.WithComponent("collector").WithError(err).Fatal("failed to get sync status")
+		}
+		return
+	}
 
 	// Run migrations
 	migrationsPath := os.Getenv("MIGRATIONS_PATH")

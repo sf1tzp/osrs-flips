@@ -10,7 +10,7 @@ build-bot:
 
 # Build collector binary and Docker image
 build-collector:
-    go build -o osrs-flips-collector cmd/collector/main.go
+    go build -o osrs-flips-collector ./cmd/collector/
     nerdctl build -t osrs-flips-collector:latest -f Dockerfile.collector .
 
 # Run a specific job (example with "Tempting Trades Under 1M")
@@ -56,9 +56,9 @@ vet:
 clean:
     rm -f osrs-flips osrs-flips-bot osrs-flips-collector coverage.out coverage.html
 
-collector:
-    go run cmd/collector/main.go
+collector *ARGS:
+    go run ./cmd/collector/ {{ARGS}}
 
 # Run collector in backfill mode (fetches historical data)
 backfill *ARGS:
-    go run cmd/collector/main.go -backfill {{ARGS}}
+    go run ./cmd/collector/ -backfill {{ARGS}}

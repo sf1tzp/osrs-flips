@@ -413,3 +413,152 @@ func (r *Repository) GetItem(ctx context.Context, itemID int) (*Item, error) {
 	}
 	return &item, nil
 }
+
+// SyncCoverageStats holds coverage statistics for a bucket size.
+type SyncCoverageStats struct {
+	TotalItems      int64
+	ItemsWithData   int64
+	ItemsWithNoData int64
+	OldestBucket    *time.Time
+	NewestBucket    *time.Time
+}
+
+// GetSyncCoverageStats returns coverage statistics for a given bucket size.
+func (r *Repository) GetSyncCoverageStats(ctx context.Context, bucketSize string) (*SyncCoverageStats, error) {
+	tableName := bucketTableName(bucketSize)
+
+	var stats SyncCoverageStats
+
+	// Get total items count
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM items`).Scan(&stats.TotalItems); err != nil {
+		return nil, fmt.Errorf("count items: %w", err)
+	}
+
+	// Get items with data count
+	query := fmt.Sprintf(`SELECT COUNT(DISTINCT item_id) FROM %s`, tableName)
+	if err := r.pool.QueryRow(ctx, query).Scan(&stats.ItemsWithData); err != nil {
+		return nil, fmt.Errorf("count items with data: %w", err)
+	}
+
+	stats.ItemsWithNoData = stats.TotalItems - stats.ItemsWithData
+
+	// Get oldest and newest bucket timestamps
+	query = fmt.Sprintf(`SELECT MIN(bucket_start), MAX(bucket_start) FROM %s`, tableName)
+	if err := r.pool.QueryRow(ctx, query).Scan(&stats.OldestBucket, &stats.NewestBucket); err != nil {
+		return nil, fmt.Errorf("get bucket range: %w", err)
+	}
+
+	return &stats, nil
+}
+
+// CompletenessDistribution holds the count of items in each completeness bracket.
+type CompletenessDistribution struct {
+	Complete90Plus int64 // 90%+ complete
+	Complete50to89 int64 // 50-89% complete
+	Complete10to49 int64 // 10-49% complete
+	CompleteLt10   int64 // <10% complete (but >0)
+	CompleteZero   int64 // 0% complete (no data)
+}
+
+// GetCompletenessDistribution returns the distribution of item completeness for a bucket size.
+func (r *Repository) GetCompletenessDistribution(ctx context.Context, bucketSize string, retention time.Duration) (*CompletenessDistribution, error) {
+	tableName := bucketTableName(bucketSize)
+
+	// Calculate the retention window start
+	windowStart := time.Now().UTC().Add(-retention)
+
+	// Calculate expected bucket interval
+	var interval string
+	switch bucketSize {
+	case "5m":
+		interval = "5 minutes"
+	case "1h":
+		interval = "1 hour"
+	case "24h":
+		interval = "24 hours"
+	default:
+		interval = "5 minutes"
+	}
+
+	query := fmt.Sprintf(`
+		WITH expected AS (
+			SELECT EXTRACT(EPOCH FROM (NOW() - $1::timestamptz)) / EXTRACT(EPOCH FROM $2::interval) as expected_buckets
+		),
+		bucket_counts AS (
+			SELECT item_id, COUNT(*) as actual_buckets
+			FROM %s
+			WHERE bucket_start > $1
+			GROUP BY item_id
+		),
+		completeness AS (
+			SELECT
+				i.item_id,
+				COALESCE(b.actual_buckets, 0) as actual,
+				e.expected_buckets as expected,
+				CASE
+					WHEN e.expected_buckets = 0 THEN 0
+					ELSE COALESCE(b.actual_buckets, 0)::float / e.expected_buckets * 100
+				END as pct
+			FROM items i
+			CROSS JOIN expected e
+			LEFT JOIN bucket_counts b ON i.item_id = b.item_id
+		)
+		SELECT
+			COUNT(*) FILTER (WHERE pct >= 90) as complete_90plus,
+			COUNT(*) FILTER (WHERE pct >= 50 AND pct < 90) as complete_50to89,
+			COUNT(*) FILTER (WHERE pct >= 10 AND pct < 50) as complete_10to49,
+			COUNT(*) FILTER (WHERE pct > 0 AND pct < 10) as complete_lt10,
+			COUNT(*) FILTER (WHERE pct = 0) as complete_zero
+		FROM completeness
+	`, tableName)
+
+	var dist CompletenessDistribution
+	err := r.pool.QueryRow(ctx, query, windowStart, interval).Scan(
+		&dist.Complete90Plus,
+		&dist.Complete50to89,
+		&dist.Complete10to49,
+		&dist.CompleteLt10,
+		&dist.CompleteZero,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get completeness distribution: %w", err)
+	}
+
+	return &dist, nil
+}
+
+// ItemWithZeroData represents an item with no bucket data.
+type ItemWithZeroData struct {
+	ItemID int
+	Name   string
+}
+
+// GetItemsWithZeroData returns items that have no bucket data for the given bucket size.
+func (r *Repository) GetItemsWithZeroData(ctx context.Context, bucketSize string, limit int) ([]ItemWithZeroData, error) {
+	tableName := bucketTableName(bucketSize)
+
+	query := fmt.Sprintf(`
+		SELECT i.item_id, i.name
+		FROM items i
+		LEFT JOIN (SELECT DISTINCT item_id FROM %s) b ON i.item_id = b.item_id
+		WHERE b.item_id IS NULL
+		ORDER BY i.item_id
+		LIMIT $1
+	`, tableName)
+
+	rows, err := r.pool.Query(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query items with zero data: %w", err)
+	}
+	defer rows.Close()
+
+	var items []ItemWithZeroData
+	for rows.Next() {
+		var item ItemWithZeroData
+		if err := rows.Scan(&item.ItemID, &item.Name); err != nil {
+			return nil, fmt.Errorf("scan item: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
