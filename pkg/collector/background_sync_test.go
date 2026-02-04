@@ -30,12 +30,16 @@ func TestRetentionPolicy(t *testing.T) {
 func TestDefaultBackgroundSyncConfig(t *testing.T) {
 	cfg := DefaultBackgroundSyncConfig()
 
-	if cfg.RunInterval != 30*time.Minute {
-		t.Errorf("RunInterval = %v, want 30m", cfg.RunInterval)
+	if cfg.RunInterval != 5*time.Minute {
+		t.Errorf("RunInterval = %v, want 5m", cfg.RunInterval)
 	}
 
-	if cfg.ItemsPerCycle != 100 {
-		t.Errorf("ItemsPerCycle = %d, want 100", cfg.ItemsPerCycle)
+	if cfg.TimestampsPerCycle != 50 {
+		t.Errorf("TimestampsPerCycle = %d, want 50", cfg.TimestampsPerCycle)
+	}
+
+	if cfg.MinItemThreshold != 100 {
+		t.Errorf("MinItemThreshold = %d, want 100", cfg.MinItemThreshold)
 	}
 
 	if cfg.RateLimit != 100*time.Millisecond {
@@ -60,8 +64,8 @@ func TestNewBackgroundSync_NilConfig(t *testing.T) {
 		t.Fatal("config should not be nil when passed nil")
 	}
 
-	if bs.config.RunInterval != 30*time.Minute {
-		t.Errorf("RunInterval = %v, want 30m", bs.config.RunInterval)
+	if bs.config.RunInterval != 5*time.Minute {
+		t.Errorf("RunInterval = %v, want 5m", bs.config.RunInterval)
 	}
 
 	if bs.limiter == nil {
@@ -87,8 +91,8 @@ func TestBackgroundSyncProgress_Initial(t *testing.T) {
 	if progress.CyclesCompleted != 0 {
 		t.Errorf("CyclesCompleted = %d, want 0", progress.CyclesCompleted)
 	}
-	if progress.ItemsSynced != 0 {
-		t.Errorf("ItemsSynced = %d, want 0", progress.ItemsSynced)
+	if progress.TimestampsSynced != 0 {
+		t.Errorf("TimestampsSynced = %d, want 0", progress.TimestampsSynced)
 	}
 	if progress.BucketsFilled != 0 {
 		t.Errorf("BucketsFilled = %d, want 0", progress.BucketsFilled)
@@ -110,10 +114,11 @@ func TestBackgroundSync_StartStop_NoOp(t *testing.T) {
 	// Test that Start/Stop don't panic with nil dependencies
 	// (they will fail during actual sync, but the lifecycle should work)
 	bs := NewBackgroundSync(nil, nil, &BackgroundSyncConfig{
-		BucketSizes:   []string{},
-		RunInterval:   time.Hour, // Long interval so it doesn't try to run
-		ItemsPerCycle: 0,
-		RateLimit:     time.Millisecond,
+		BucketSizes:       []string{},
+		RunInterval:       time.Hour, // Long interval so it doesn't try to run
+		TimestampsPerCycle: 0,
+		MinItemThreshold:  100,
+		RateLimit:         time.Millisecond,
 	}, nil, nil)
 
 	// Double start should be no-op

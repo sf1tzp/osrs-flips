@@ -124,6 +124,42 @@ func (c *Client) GetTimeseries(ctx context.Context, itemID int, timestep string)
 	return result, nil
 }
 
+// GetBulkPrices fetches all items' price data for a given bucket size and optional timestamp.
+// bucketSize must be one of: "5m", "1h", "24h"
+// If timestamp is nil, returns the most recent data point.
+// If timestamp is provided, returns data for that specific time window (Unix seconds).
+func (c *Client) GetBulkPrices(ctx context.Context, bucketSize string, timestamp *time.Time) (*BulkPriceResponse, error) {
+	endpointMap := map[string]string{
+		"5m":  "/5m",
+		"1h":  "/1h",
+		"24h": "/24h",
+	}
+
+	endpoint, ok := endpointMap[bucketSize]
+	if !ok {
+		return nil, fmt.Errorf("invalid bucket size %q: must be 5m, 1h, or 24h", bucketSize)
+	}
+
+	var params map[string]string
+	if timestamp != nil {
+		params = map[string]string{
+			"timestamp": strconv.FormatInt(timestamp.Unix(), 10),
+		}
+	}
+
+	data, err := c.makeAPIRequest(ctx, endpoint, params)
+	if err != nil {
+		return nil, fmt.Errorf("fetching bulk prices for %s: %w", bucketSize, err)
+	}
+
+	var response BulkPriceResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("parsing bulk prices response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetTimeseriesTyped fetches historical price/volume data with typed response.
 // timestep must be one of: "5m", "1h", "6h", "24h"
 // Returns up to 365 data points.

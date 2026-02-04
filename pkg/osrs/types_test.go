@@ -1,6 +1,7 @@
 package osrs
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -110,6 +111,69 @@ func TestTimeseriesResponse(t *testing.T) {
 
 		if response.Data[1].AvgHighPrice != nil {
 			t.Errorf("Expected second data point AvgHighPrice to be nil, got %v", response.Data[1].AvgHighPrice)
+		}
+	})
+}
+
+func TestBulkPriceResponse_JSONParsing(t *testing.T) {
+	t.Run("parse full response", func(t *testing.T) {
+		raw := `{
+			"data": {
+				"2": {"avgHighPrice": 182, "highPriceVolume": 640, "avgLowPrice": 179, "lowPriceVolume": 2358},
+				"6": {"avgHighPrice": 189820, "highPriceVolume": 3, "avgLowPrice": 184674, "lowPriceVolume": 5},
+				"8": {"avgHighPrice": null, "highPriceVolume": null, "avgLowPrice": null, "lowPriceVolume": null}
+			},
+			"timestamp": 1738627200
+		}`
+
+		var resp BulkPriceResponse
+		if err := json.Unmarshal([]byte(raw), &resp); err != nil {
+			t.Fatalf("failed to parse: %v", err)
+		}
+
+		if resp.Timestamp != 1738627200 {
+			t.Errorf("Timestamp = %d, want 1738627200", resp.Timestamp)
+		}
+
+		if len(resp.Data) != 3 {
+			t.Errorf("Data length = %d, want 3", len(resp.Data))
+		}
+
+		// Check item 2 has values
+		item2 := resp.Data["2"]
+		if item2.AvgHighPrice == nil || *item2.AvgHighPrice != 182 {
+			t.Errorf("item 2 AvgHighPrice = %v, want 182", item2.AvgHighPrice)
+		}
+		if item2.HighPriceVolume == nil || *item2.HighPriceVolume != 640 {
+			t.Errorf("item 2 HighPriceVolume = %v, want 640", item2.HighPriceVolume)
+		}
+		if item2.AvgLowPrice == nil || *item2.AvgLowPrice != 179 {
+			t.Errorf("item 2 AvgLowPrice = %v, want 179", item2.AvgLowPrice)
+		}
+		if item2.LowPriceVolume == nil || *item2.LowPriceVolume != 2358 {
+			t.Errorf("item 2 LowPriceVolume = %v, want 2358", item2.LowPriceVolume)
+		}
+
+		// Check item 8 has null values
+		item8 := resp.Data["8"]
+		if item8.AvgHighPrice != nil {
+			t.Errorf("item 8 AvgHighPrice should be nil, got %v", *item8.AvgHighPrice)
+		}
+		if item8.HighPriceVolume != nil {
+			t.Errorf("item 8 HighPriceVolume should be nil, got %v", *item8.HighPriceVolume)
+		}
+	})
+
+	t.Run("parse empty data", func(t *testing.T) {
+		raw := `{"data": {}, "timestamp": 1738627200}`
+
+		var resp BulkPriceResponse
+		if err := json.Unmarshal([]byte(raw), &resp); err != nil {
+			t.Fatalf("failed to parse: %v", err)
+		}
+
+		if len(resp.Data) != 0 {
+			t.Errorf("Data length = %d, want 0", len(resp.Data))
 		}
 	})
 }

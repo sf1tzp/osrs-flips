@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,30 +22,32 @@ var RetentionPolicy = map[string]time.Duration{
 
 // BackgroundSyncConfig configures the background sync service.
 type BackgroundSyncConfig struct {
-	BucketSizes   []string      // Bucket sizes to sync (default: ["5m", "1h", "24h"])
-	RunInterval   time.Duration // How often to run a full sync cycle (default: 30m)
-	ItemsPerCycle int           // Max items to process per bucket per cycle (default: 100)
-	RateLimit     time.Duration // Minimum delay between API calls (default: 100ms)
+	BucketSizes       []string      // Bucket sizes to sync (default: ["5m", "1h", "24h"])
+	RunInterval       time.Duration // How often to run a full sync cycle (default: 5m)
+	TimestampsPerCycle int          // Max timestamps to process per bucket per cycle (default: 50)
+	MinItemThreshold  int           // Timestamps with fewer items than this are re-fetched (default: 100)
+	RateLimit         time.Duration // Minimum delay between API calls (default: 100ms)
 }
 
 // DefaultBackgroundSyncConfig returns sensible defaults.
 func DefaultBackgroundSyncConfig() *BackgroundSyncConfig {
 	return &BackgroundSyncConfig{
-		BucketSizes:   []string{"5m", "1h", "24h"},
-		RunInterval:   30 * time.Minute,
-		ItemsPerCycle: 100,
-		RateLimit:     100 * time.Millisecond,
+		BucketSizes:       []string{"5m", "1h", "24h"},
+		RunInterval:       5 * time.Minute,
+		TimestampsPerCycle: 50,
+		MinItemThreshold:  100,
+		RateLimit:         100 * time.Millisecond,
 	}
 }
 
 // BackgroundSyncProgress tracks sync progress.
 type BackgroundSyncProgress struct {
-	CyclesCompleted int
-	ItemsSynced     int64
-	BucketsFilled   int64
-	Errors          int
-	LastCycleStart  time.Time
-	LastCycleEnd    time.Time
+	CyclesCompleted  int
+	TimestampsSynced int64
+	BucketsFilled    int64
+	Errors           int
+	LastCycleStart   time.Time
+	LastCycleEnd     time.Time
 }
 
 // BackgroundSync continuously syncs historical price data in the background.
@@ -142,9 +145,10 @@ func (b *BackgroundSync) run() {
 	}()
 
 	b.logger.WithComponent("background_sync").WithFields(map[string]interface{}{
-		"bucket_sizes":    b.config.BucketSizes,
-		"run_interval":    b.config.RunInterval.String(),
-		"items_per_cycle": b.config.ItemsPerCycle,
+		"bucket_sizes":        b.config.BucketSizes,
+		"run_interval":        b.config.RunInterval.String(),
+		"timestamps_per_cycle": b.config.TimestampsPerCycle,
+		"min_item_threshold":  b.config.MinItemThreshold,
 	}).Info("starting background sync")
 
 	// Run immediately on start
@@ -181,7 +185,7 @@ func (b *BackgroundSync) runCycle() {
 	b.progress.LastCycleStart = time.Now()
 	b.mu.Unlock()
 
-	cycleItemsSynced := int64(0)
+	cycleTimestampsSynced := int64(0)
 	cycleBucketsFilled := int64(0)
 	cycleErrors := 0
 
@@ -192,15 +196,15 @@ func (b *BackgroundSync) runCycle() {
 		default:
 		}
 
-		itemsSynced, bucketsFilled, errors := b.syncBucketSize(ctx, bucketSize)
-		cycleItemsSynced += itemsSynced
+		timestampsSynced, bucketsFilled, errors := b.syncBucketSize(ctx, bucketSize)
+		cycleTimestampsSynced += timestampsSynced
 		cycleBucketsFilled += bucketsFilled
 		cycleErrors += errors
 	}
 
 	b.mu.Lock()
 	b.progress.CyclesCompleted++
-	b.progress.ItemsSynced += cycleItemsSynced
+	b.progress.TimestampsSynced += cycleTimestampsSynced
 	b.progress.BucketsFilled += cycleBucketsFilled
 	b.progress.Errors += cycleErrors
 	b.progress.LastCycleEnd = time.Now()
@@ -209,66 +213,66 @@ func (b *BackgroundSync) runCycle() {
 	b.mu.Unlock()
 
 	b.logger.WithComponent("background_sync").WithFields(map[string]interface{}{
-		"cycle":          cycleNum,
-		"items_synced":   cycleItemsSynced,
-		"buckets_filled": cycleBucketsFilled,
-		"errors":         cycleErrors,
-		"duration":       cycleDuration.String(),
+		"cycle":             cycleNum,
+		"timestamps_synced": cycleTimestampsSynced,
+		"buckets_filled":    cycleBucketsFilled,
+		"errors":            cycleErrors,
+		"duration":          cycleDuration.String(),
 	}).Info("sync cycle completed")
 }
 
-func (b *BackgroundSync) syncBucketSize(ctx context.Context, bucketSize string) (itemsSynced int64, bucketsFilled int64, errors int) {
+func (b *BackgroundSync) syncBucketSize(ctx context.Context, bucketSize string) (timestampsSynced int64, bucketsFilled int64, errors int) {
 	retention := RetentionPolicy[bucketSize]
 
-	// Get items that need sync
-	items, err := b.repo.GetItemsNeedingSync(ctx, bucketSize, retention, b.config.ItemsPerCycle)
+	// Get timestamps that need sync (missing or incomplete)
+	timestamps, err := b.repo.GetMissingBucketTimestamps(ctx, bucketSize, retention, b.config.MinItemThreshold, b.config.TimestampsPerCycle)
 	if err != nil {
-		b.logger.WithComponent("background_sync").WithError(err).WithField("bucket_size", bucketSize).Error("failed to get items needing sync")
+		b.logger.WithComponent("background_sync").WithError(err).WithField("bucket_size", bucketSize).Error("failed to get missing timestamps")
 		return 0, 0, 1
 	}
 
-	if len(items) == 0 {
-		b.logger.WithComponent("background_sync").WithField("bucket_size", bucketSize).Debug("no items need sync")
+	if len(timestamps) == 0 {
+		b.logger.WithComponent("background_sync").WithField("bucket_size", bucketSize).Debug("no timestamps need sync")
 		return 0, 0, 0
 	}
 
 	b.logger.WithComponent("background_sync").WithFields(map[string]interface{}{
-		"bucket_size": bucketSize,
-		"items_count": len(items),
-	}).Debug("syncing items")
+		"bucket_size":      bucketSize,
+		"timestamps_count": len(timestamps),
+	}).Debug("syncing timestamps")
 
-	for _, itemID := range items {
+	for _, ts := range timestamps {
 		select {
 		case <-ctx.Done():
-			return itemsSynced, bucketsFilled, errors
+			return timestampsSynced, bucketsFilled, errors
 		default:
 		}
 
-		filled, err := b.syncItem(ctx, itemID, bucketSize, retention)
+		filled, err := b.syncTimestamp(ctx, bucketSize, ts)
 		if err != nil {
 			b.logger.WithComponent("background_sync").WithError(err).WithFields(map[string]interface{}{
-				"item_id":     itemID,
+				"timestamp":   ts.Format(time.RFC3339),
 				"bucket_size": bucketSize,
-			}).Warn("failed to sync item")
+			}).Warn("failed to sync timestamp")
 			errors++
 			continue
 		}
 
-		itemsSynced++
+		timestampsSynced++
 		bucketsFilled += filled
 	}
 
-	return itemsSynced, bucketsFilled, errors
+	return timestampsSynced, bucketsFilled, errors
 }
 
-func (b *BackgroundSync) syncItem(ctx context.Context, itemID int, bucketSize string, retention time.Duration) (int64, error) {
+func (b *BackgroundSync) syncTimestamp(ctx context.Context, bucketSize string, ts time.Time) (int64, error) {
 	// Wait for rate limiter
 	if err := b.limiter.Wait(ctx); err != nil {
 		return 0, err
 	}
 
-	// Fetch timeseries from API
-	resp, err := b.client.GetTimeseriesTyped(ctx, itemID, bucketSize)
+	// Fetch all items for this timestamp from the bulk endpoint
+	resp, err := b.client.GetBulkPrices(ctx, bucketSize, &ts)
 	if err != nil {
 		return 0, err
 	}
@@ -277,19 +281,14 @@ func (b *BackgroundSync) syncItem(ctx context.Context, itemID int, bucketSize st
 		return 0, nil
 	}
 
-	// Calculate retention cutoff
-	var cutoff time.Time
-	if retention > 0 {
-		cutoff = time.Now().UTC().Add(-retention)
-	}
+	// The response timestamp is the canonical bucket start time
+	bucketTime := time.Unix(resp.Timestamp, 0).UTC()
 
-	// Convert to price buckets, filtering by retention
+	// Convert bulk response to price buckets
 	buckets := make([]PriceBucket, 0, len(resp.Data))
-	for _, dp := range resp.Data {
-		bucketTime := time.Unix(dp.Timestamp, 0).UTC()
-
-		// Skip data outside retention window
-		if retention > 0 && bucketTime.Before(cutoff) {
+	for itemIDStr, dp := range resp.Data {
+		itemID, err := strconv.Atoi(itemIDStr)
+		if err != nil || itemID <= 0 {
 			continue
 		}
 
@@ -307,12 +306,12 @@ func (b *BackgroundSync) syncItem(ctx context.Context, itemID int, bucketSize st
 			Source:       "api",
 		}
 
-		if dp.HighPriceVol != nil {
-			v := int64(*dp.HighPriceVol)
+		if dp.HighPriceVolume != nil {
+			v := int64(*dp.HighPriceVolume)
 			bucket.HighPriceVolume = &v
 		}
-		if dp.LowPriceVol != nil {
-			v := int64(*dp.LowPriceVol)
+		if dp.LowPriceVolume != nil {
+			v := int64(*dp.LowPriceVolume)
 			bucket.LowPriceVolume = &v
 		}
 

@@ -311,6 +311,79 @@ func (r *Repository) GetItemCount(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+// GetMissingBucketTimestamps returns timestamps in the retention window that have fewer
+// than minItemCount items with data. Results are ordered most-recent-first for freshness priority.
+// This is used by the bulk sync approach to identify which timestamps need fetching.
+func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize string, retention time.Duration, minItemCount int, limit int) ([]time.Time, error) {
+	tableName := bucketTableName(bucketSize)
+
+	// Calculate the retention window
+	var windowStart time.Time
+	if retention > 0 {
+		windowStart = time.Now().UTC().Add(-retention)
+	} else {
+		windowStart = time.Now().UTC().AddDate(-1, 0, 0)
+	}
+
+	// Calculate bucket interval for generate_series
+	var interval string
+	switch bucketSize {
+	case "5m":
+		interval = "5 minutes"
+	case "1h":
+		interval = "1 hour"
+	case "24h":
+		interval = "24 hours"
+	default:
+		interval = "5 minutes"
+	}
+
+	// generate_series enumerates all expected timestamps in the retention window.
+	// LEFT JOIN against actual bucket counts to find timestamps with insufficient data.
+	// We truncate windowStart down to the nearest bucket boundary for clean alignment.
+	// Note: tableName is from our controlled bucketTableName(), not user input.
+	query := fmt.Sprintf(`
+		WITH expected_timestamps AS (
+			SELECT gs AS bucket_ts
+			FROM generate_series(
+				date_trunc('hour', $1::timestamptz),
+				date_trunc('hour', NOW()),
+				$2::interval
+			) AS gs
+			WHERE gs >= $1::timestamptz
+			  AND gs <= NOW() - $2::interval
+		),
+		actual_counts AS (
+			SELECT bucket_start, COUNT(*) AS item_count
+			FROM %s
+			WHERE bucket_start >= $1::timestamptz
+			GROUP BY bucket_start
+		)
+		SELECT et.bucket_ts
+		FROM expected_timestamps et
+		LEFT JOIN actual_counts ac ON et.bucket_ts = ac.bucket_start
+		WHERE COALESCE(ac.item_count, 0) < $3
+		ORDER BY et.bucket_ts DESC
+		LIMIT $4
+	`, tableName)
+
+	rows, err := r.pool.Query(ctx, query, windowStart, interval, minItemCount, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query missing bucket timestamps: %w", err)
+	}
+	defer rows.Close()
+
+	var timestamps []time.Time
+	for rows.Next() {
+		var ts time.Time
+		if err := rows.Scan(&ts); err != nil {
+			return nil, fmt.Errorf("scan timestamp: %w", err)
+		}
+		timestamps = append(timestamps, ts)
+	}
+	return timestamps, rows.Err()
+}
+
 // GetItemsNeedingSync returns item IDs that need historical data sync.
 // This includes both:
 // - Items with no bucket data for the given bucket size (new items)
