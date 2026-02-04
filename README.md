@@ -17,6 +17,51 @@ just run "job-name"
 just build up
 ```
 
+## Collector
+
+The collector is a headless service that polls the OSRS Wiki API and stores price data in PostgreSQL with TimescaleDB. It runs independently from the Discord bot.
+
+### Features
+
+- **Real-time polling**: Fetches `/latest` prices at configurable intervals
+- **Background sync**: Backfills historical data from `/timeseries` API
+- **Volume polling**: Optional per-item volume tracking for high-interest items
+- **Automatic migrations**: Manages database schema on startup
+
+### Configuration
+
+| Environment Variable | Required | Default | Description |
+|---------------------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
+| `OSRS_API_USER_AGENT` | Yes | - | User agent for Wiki API (required by their ToS) |
+| `LOG_LEVEL` | No | `info` | Log level (debug, info, warn, error) |
+| `LOG_FORMAT` | No | `json` | Log format (json, text) |
+| `POLL_INTERVAL_SECONDS` | No | `60` | Interval between /latest polls |
+
+### Running
+
+```bash
+# Build the collector image
+just build-collector
+
+# Run with docker compose
+docker compose up collector
+
+# Or run directly
+just collector
+```
+
+### Command Line Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--skip-item-sync` | `false` | Skip initial item metadata sync |
+| `--skip-backfill` | `false` | Disable background sync (poller only) |
+| `--sync-interval` | `30m` | Background sync interval |
+| `--sync-items-per-cycle` | `100` | Max items to sync per bucket per cycle |
+| `--enable-volume-polling` | `false` | Enable per-item volume polling |
+| `--volume-poll-interval` | `5m` | Volume polling interval |
+
 ### Jobs and Filter Configuration
 
 You can define different jobs with custom filters. When a job runs, it first retrieves data from the wiki's price API (a single call for many items). Your configured price filters are applied to that initial set. The items are then sorted, and volume information is retrieved from the timeseries API (up to `limit` calls for `limit` items). Your configured volume filters are then applied, and data is sent to ollama for summary.

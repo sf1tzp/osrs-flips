@@ -3,12 +3,15 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"osrs-flipping/pkg/config"
+	"osrs-flipping/pkg/database"
 	"osrs-flipping/pkg/llm"
 	"osrs-flipping/pkg/logging"
 	"osrs-flipping/pkg/osrs"
+	"osrs-flipping/pkg/storage"
 )
 
 // JobResult represents the output of a job execution
@@ -34,8 +37,41 @@ type JobRunner struct {
 
 // NewJobRunner creates a new job runner with the given configuration
 func NewJobRunner(cfg *config.Config) (*JobRunner, error) {
+	// Create logger for the executor
+	logger := logging.NewLogger(cfg.Logging.Level, cfg.Logging.Format)
+
 	// Create analyzer
 	analyzer := osrs.NewAnalyzer(cfg.OSRS.UserAgent)
+
+	// Check if database is configured and set up hybrid data source
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		logger.WithComponent("JobRunner").Info("DATABASE_URL found, setting up hybrid data source")
+
+		// Connect to database
+		dbConfig, err := database.ConfigFromEnv()
+		if err != nil {
+			logger.WithComponent("JobRunner").WithError(err).Warn("Failed to load database config, using API-only mode")
+		} else {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			db, err := database.Connect(ctx, dbConfig)
+			cancel()
+
+			if err != nil {
+				logger.WithComponent("JobRunner").WithError(err).Warn("Failed to connect to database, using API-only mode")
+			} else {
+				// Create the hybrid data source
+				queryRepo := storage.NewQueryRepository(db.Pool)
+				apiSource := osrs.NewAPIDataSourceWithClient(analyzer.GetClient())
+				dbSource := osrs.NewDBDataSource(queryRepo, analyzer.GetClient(), 5*time.Minute)
+				hybridSource := osrs.NewHybridDataSource(dbSource, apiSource)
+
+				analyzer.SetDataSource(hybridSource)
+				logger.WithComponent("JobRunner").Info("Hybrid data source configured (DB + API fallback)")
+			}
+		}
+	} else {
+		logger.WithComponent("JobRunner").Info("No DATABASE_URL found, using API-only mode")
+	}
 
 	// Parse LLM timeout
 	timeout, err := time.ParseDuration(cfg.LLM.Timeout)
@@ -46,9 +82,6 @@ func NewJobRunner(cfg *config.Config) (*JobRunner, error) {
 
 	// Create LLM client
 	llmClient := llm.NewClient(cfg.LLM.BaseURL, timeout)
-
-	// Create logger for the executor
-	logger := logging.NewLogger(cfg.Logging.Level, cfg.Logging.Format)
 
 	// Log timeout warning if needed
 	if err != nil {
@@ -74,13 +107,13 @@ func NewJobRunner(cfg *config.Config) (*JobRunner, error) {
 // LoadData loads the base OSRS data (should be called once at startup)
 func (jr *JobRunner) LoadData(ctx context.Context) error {
 	jr.logger.Info("Loading OSRS base data")
-	return jr.executor.osrsAnalyzer.LoadData(ctx, true)
+	return jr.executor.osrsAnalyzer.LoadDataFromSource(ctx, true)
 }
 
 // RefreshData refreshes the OSRS data (for scheduled updates)
 func (jr *JobRunner) RefreshData(ctx context.Context) error {
 	jr.logger.Info("Refreshing OSRS base data")
-	return jr.executor.osrsAnalyzer.LoadData(ctx, true)
+	return jr.executor.osrsAnalyzer.LoadDataFromSource(ctx, true)
 }
 
 // RunJob executes a specific job by name and returns the result

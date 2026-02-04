@@ -134,7 +134,7 @@ func (e *Executor) ExecuteJobWithResult(ctx context.Context, jobName string) (*J
 	refreshCtx, refreshCancel := context.WithTimeout(ctx, 60*time.Second)
 	defer refreshCancel()
 
-	if err := e.osrsAnalyzer.LoadData(refreshCtx, true); err != nil {
+	if err := e.osrsAnalyzer.LoadDataFromSource(refreshCtx, true); err != nil {
 		e.logger.WithFields(map[string]interface{}{
 			"job_name": jobName,
 			"error":    err.Error(),
@@ -219,7 +219,7 @@ func (e *Executor) ExecuteJobWithResult(ctx context.Context, jobName string) (*J
 			maxVolumeItems = len(items)
 		}
 
-		if err := e.osrsAnalyzer.LoadVolumeData(volumeCtx, itemIDs, maxVolumeItems); err != nil {
+		if err := e.osrsAnalyzer.LoadVolumeDataFromSource(volumeCtx, itemIDs, maxVolumeItems); err != nil {
 			e.logger.WithFields(map[string]interface{}{
 				"job_name":   jobName,
 				"error":      err.Error(),

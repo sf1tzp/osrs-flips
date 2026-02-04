@@ -29,3 +29,23 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  collector:
+    container_name: osrs-flips-collector
+    restart: unless-stopped
+    image: osrs-flips-collector:latest
+
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - OSRS_API_USER_AGENT=${OSRS_API_USER_AGENT}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-60}
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "pgrep", "osrs-flips-collector"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
