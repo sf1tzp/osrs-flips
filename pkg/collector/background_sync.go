@@ -17,7 +17,7 @@ import (
 var RetentionPolicy = map[string]time.Duration{
 	"5m":  7 * 24 * time.Hour,   // 7 days
 	"1h":  365 * 24 * time.Hour, // 1 year
-	"24h": 0,                    // forever (no limit)
+	"24h": 5 * 365 * 24 * time.Hour, // 5 years
 }
 
 // BackgroundSyncConfig configures the background sync service.
@@ -25,7 +25,6 @@ type BackgroundSyncConfig struct {
 	BucketSizes        []string      // Bucket sizes to sync (default: ["5m", "1h", "24h"])
 	RunInterval        time.Duration // How often to run a full sync cycle (default: 5m)
 	TimestampsPerCycle int           // Max timestamps to process per bucket per cycle (default: 50)
-	MinItemThreshold   int           // Timestamps with fewer items than this are re-fetched (default: 100)
 	RateLimit          time.Duration // Minimum delay between API calls (default: 100ms)
 }
 
@@ -35,7 +34,6 @@ func DefaultBackgroundSyncConfig() *BackgroundSyncConfig {
 		BucketSizes:        []string{"5m", "1h", "24h"},
 		RunInterval:        5 * time.Minute,
 		TimestampsPerCycle: 50,
-		MinItemThreshold:   100,
 		RateLimit:          100 * time.Millisecond,
 	}
 }
@@ -148,7 +146,6 @@ func (b *BackgroundSync) run() {
 		"bucket_sizes":         b.config.BucketSizes,
 		"run_interval":         b.config.RunInterval.String(),
 		"timestamps_per_cycle": b.config.TimestampsPerCycle,
-		"min_item_threshold":   b.config.MinItemThreshold,
 	}).Info("starting background sync")
 
 	// Run immediately on start
@@ -225,7 +222,7 @@ func (b *BackgroundSync) syncBucketSize(ctx context.Context, bucketSize string) 
 	retention := RetentionPolicy[bucketSize]
 
 	// Get timestamps that need sync (missing or incomplete)
-	timestamps, err := b.repo.GetMissingBucketTimestamps(ctx, bucketSize, retention, b.config.MinItemThreshold, b.config.TimestampsPerCycle)
+	timestamps, err := b.repo.GetMissingBucketTimestamps(ctx, bucketSize, retention, b.config.TimestampsPerCycle)
 	if err != nil {
 		b.logger.WithComponent("background_sync").WithError(err).WithField("bucket_size", bucketSize).Error("failed to get missing timestamps")
 		return 0, 0, 1

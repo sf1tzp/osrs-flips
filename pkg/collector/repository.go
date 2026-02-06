@@ -311,10 +311,10 @@ func (r *Repository) GetItemCount(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-// GetMissingBucketTimestamps returns timestamps in the retention window that have fewer
-// than minItemCount items with data. Results are ordered most-recent-first for freshness priority.
-// This is used by the bulk sync approach to identify which timestamps need fetching.
-func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize string, retention time.Duration, minItemCount int, limit int) ([]time.Time, error) {
+// GetMissingBucketTimestamps returns timestamps in the retention window that have zero
+// items with data (i.e., have never been fetched). Results are ordered oldest-first
+// so backfill progresses chronologically from the start of the retention window.
+func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize string, retention time.Duration, limit int) ([]time.Time, error) {
 	tableName := bucketTableName(bucketSize)
 
 	// Calculate the retention window
@@ -368,12 +368,12 @@ func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize 
 		SELECT et.bucket_ts
 		FROM expected_timestamps et
 		LEFT JOIN actual_counts ac ON et.bucket_ts = ac.bucket_start
-		WHERE COALESCE(ac.item_count, 0) < $3
-		ORDER BY et.bucket_ts DESC
-		LIMIT $4
+		WHERE COALESCE(ac.item_count, 0) = 0
+		ORDER BY et.bucket_ts ASC
+		LIMIT $3
 	`, truncUnit, truncUnit, tableName)
 
-	rows, err := r.pool.Query(ctx, query, windowStart, interval, minItemCount, limit)
+	rows, err := r.pool.Query(ctx, query, windowStart, interval, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query missing bucket timestamps: %w", err)
 	}

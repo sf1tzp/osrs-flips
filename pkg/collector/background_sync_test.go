@@ -14,7 +14,7 @@ func TestRetentionPolicy(t *testing.T) {
 	}{
 		{"5m", 7 * 24 * time.Hour},
 		{"1h", 365 * 24 * time.Hour},
-		{"24h", 0},
+		{"24h", 5 * 365 * 24 * time.Hour},
 	}
 
 	for _, tt := range tests {
@@ -36,10 +36,6 @@ func TestDefaultBackgroundSyncConfig(t *testing.T) {
 
 	if cfg.TimestampsPerCycle != 50 {
 		t.Errorf("TimestampsPerCycle = %d, want 50", cfg.TimestampsPerCycle)
-	}
-
-	if cfg.MinItemThreshold != 100 {
-		t.Errorf("MinItemThreshold = %d, want 100", cfg.MinItemThreshold)
 	}
 
 	if cfg.RateLimit != 100*time.Millisecond {
@@ -114,11 +110,10 @@ func TestBackgroundSync_StartStop_NoOp(t *testing.T) {
 	// Test that Start/Stop don't panic with nil dependencies
 	// (they will fail during actual sync, but the lifecycle should work)
 	bs := NewBackgroundSync(nil, nil, &BackgroundSyncConfig{
-		BucketSizes:       []string{},
-		RunInterval:       time.Hour, // Long interval so it doesn't try to run
+		BucketSizes:        []string{},
+		RunInterval:        time.Hour, // Long interval so it doesn't try to run
 		TimestampsPerCycle: 0,
-		MinItemThreshold:  100,
-		RateLimit:         time.Millisecond,
+		RateLimit:          time.Millisecond,
 	}, nil, nil)
 
 	// Double start should be no-op
