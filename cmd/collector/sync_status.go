@@ -16,9 +16,9 @@ type BucketConfig struct {
 }
 
 var bucketConfigs = []BucketConfig{
-	{Size: "5m", Retention: 7 * 24 * time.Hour},   // 7 days
-	{Size: "1h", Retention: 30 * 24 * time.Hour},  // 30 days
-	{Size: "24h", Retention: 365 * 24 * time.Hour}, // 365 days
+	{Size: "5m", Retention: collector.RetentionPolicy["5m"]},
+	{Size: "1h", Retention: collector.RetentionPolicy["1h"]},
+	{Size: "24h", Retention: collector.RetentionPolicy["24h"]},
 }
 
 // SyncStatus handles the --status command output.
@@ -185,6 +185,9 @@ func formatNumber(n int64) string {
 }
 
 func formatRetention(d time.Duration) string {
+	if d == 0 {
+		return "forever"
+	}
 	days := int(d.Hours() / 24)
 	if days >= 365 {
 		years := days / 365

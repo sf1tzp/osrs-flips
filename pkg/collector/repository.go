@@ -544,7 +544,12 @@ func (r *Repository) GetCompletenessDistribution(ctx context.Context, bucketSize
 	tableName := bucketTableName(bucketSize)
 
 	// Calculate the retention window start
-	windowStart := time.Now().UTC().Add(-retention)
+	var windowStart time.Time
+	if retention > 0 {
+		windowStart = time.Now().UTC().Add(-retention)
+	} else {
+		windowStart = time.Now().UTC().AddDate(-1, 0, 0)
+	}
 
 	// Calculate expected bucket interval
 	var interval string

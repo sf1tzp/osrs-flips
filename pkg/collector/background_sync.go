@@ -22,21 +22,21 @@ var RetentionPolicy = map[string]time.Duration{
 
 // BackgroundSyncConfig configures the background sync service.
 type BackgroundSyncConfig struct {
-	BucketSizes       []string      // Bucket sizes to sync (default: ["5m", "1h", "24h"])
-	RunInterval       time.Duration // How often to run a full sync cycle (default: 5m)
-	TimestampsPerCycle int          // Max timestamps to process per bucket per cycle (default: 50)
-	MinItemThreshold  int           // Timestamps with fewer items than this are re-fetched (default: 100)
-	RateLimit         time.Duration // Minimum delay between API calls (default: 100ms)
+	BucketSizes        []string      // Bucket sizes to sync (default: ["5m", "1h", "24h"])
+	RunInterval        time.Duration // How often to run a full sync cycle (default: 5m)
+	TimestampsPerCycle int           // Max timestamps to process per bucket per cycle (default: 50)
+	MinItemThreshold   int           // Timestamps with fewer items than this are re-fetched (default: 100)
+	RateLimit          time.Duration // Minimum delay between API calls (default: 100ms)
 }
 
 // DefaultBackgroundSyncConfig returns sensible defaults.
 func DefaultBackgroundSyncConfig() *BackgroundSyncConfig {
 	return &BackgroundSyncConfig{
-		BucketSizes:       []string{"5m", "1h", "24h"},
-		RunInterval:       5 * time.Minute,
+		BucketSizes:        []string{"5m", "1h", "24h"},
+		RunInterval:        5 * time.Minute,
 		TimestampsPerCycle: 50,
-		MinItemThreshold:  100,
-		RateLimit:         100 * time.Millisecond,
+		MinItemThreshold:   100,
+		RateLimit:          100 * time.Millisecond,
 	}
 }
 
@@ -145,10 +145,10 @@ func (b *BackgroundSync) run() {
 	}()
 
 	b.logger.WithComponent("background_sync").WithFields(map[string]interface{}{
-		"bucket_sizes":        b.config.BucketSizes,
-		"run_interval":        b.config.RunInterval.String(),
+		"bucket_sizes":         b.config.BucketSizes,
+		"run_interval":         b.config.RunInterval.String(),
 		"timestamps_per_cycle": b.config.TimestampsPerCycle,
-		"min_item_threshold":  b.config.MinItemThreshold,
+		"min_item_threshold":   b.config.MinItemThreshold,
 	}).Info("starting background sync")
 
 	// Run immediately on start
