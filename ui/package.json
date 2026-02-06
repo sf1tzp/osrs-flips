@@ -33,6 +33,7 @@
 		"eslint": "^9.39.2",
 		"eslint-plugin-svelte": "^3.14.0",
 		"globals": "^17.1.0",
+		"layerchart": "^2.0.0-next.43",
 		"mdsvex": "^0.12.6",
 		"svelte": "^5.48.2",
 		"svelte-check": "^4.3.5",
