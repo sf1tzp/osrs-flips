@@ -6,8 +6,11 @@ import { error } from '@sveltejs/kit';
 import {
 	getPriceHistory,
 	PRICE_HISTORY_RANGES,
+	SOURCE_OPTIONS,
+	DEFAULT_SOURCES,
 	wikiIconUrl,
 	type PriceHistoryRange,
+	type PriceHistorySource,
 } from '$lib/server/db/queries';
 
 export const load: PageServerLoad = async ({ params, url }) => {
@@ -20,9 +23,16 @@ export const load: PageServerLoad = async ({ params, url }) => {
 			? (rangeParam as PriceHistoryRange)
 			: '24h';
 
+	const sourceParam = url.searchParams.get('source');
+	const validSources = SOURCE_OPTIONS[range];
+	const source: PriceHistorySource =
+		sourceParam && validSources.includes(sourceParam as PriceHistorySource)
+			? (sourceParam as PriceHistorySource)
+			: DEFAULT_SOURCES[range];
+
 	const [[item], priceHistory] = await Promise.all([
 		db.select().from(items).where(eq(items.itemId, itemId)).limit(1),
-		getPriceHistory(itemId, range),
+		getPriceHistory(itemId, range, source),
 	]);
 
 	if (!item) error(404, 'Item not found');
@@ -31,5 +41,6 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		item: { ...item, icon: item.icon ? wikiIconUrl(item.icon) : null },
 		priceHistory,
 		range,
+		source,
 	};
 };

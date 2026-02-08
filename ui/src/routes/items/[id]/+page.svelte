@@ -16,7 +16,13 @@
 		Tooltip,
 	} from 'layerchart';
 	import { scaleTime, scaleLinear } from 'd3-scale';
-	import type { PriceHistoryRange } from '$lib/server/db/queries';
+	import {
+		SOURCE_OPTIONS,
+		SOURCE_LABELS,
+		DEFAULT_SOURCES,
+		type PriceHistoryRange,
+		type PriceHistorySource,
+	} from '$lib/price-history';
 
 	const priceTimeScale = scaleTime();
 	const priceYScale = scaleLinear();
@@ -40,6 +46,7 @@
 	let item = $derived(data.item);
 	let priceHistory = $derived(data.priceHistory);
 	let range = $derived(data.range as PriceHistoryRange);
+	let source = $derived(data.source as PriceHistorySource);
 
 	const ranges: { value: PriceHistoryRange; label: string }[] = [
 		{ value: '1h', label: '1H' },
@@ -49,7 +56,17 @@
 		{ value: '30d', label: '30D' },
 	];
 
-	let hasVolume = $derived(range === '24h' || range === '7d' || range === '30d');
+	let sourceOptions = $derived(SOURCE_OPTIONS[range]);
+	let hasVolume = $derived(source !== 'observations');
+
+	function navUrl(r: PriceHistoryRange, s?: PriceHistorySource) {
+		const effectiveSource = s ?? DEFAULT_SOURCES[r];
+		const params = new URLSearchParams({ range: r });
+		if (effectiveSource !== DEFAULT_SOURCES[r]) {
+			params.set('source', effectiveSource);
+		}
+		return `?${params}`;
+	}
 	let isLoading = $derived(!!navigating.to);
 
 	let chartData = $derived(
@@ -128,15 +145,26 @@
 		{/if}
 	</div>
 
-	<!-- Range Selector -->
-	<div class="mb-4 flex gap-1">
+	<!-- Range & Source Selector -->
+	<div class="mb-4 flex items-center gap-1">
 		{#each ranges as r (r.value)}
 			<Button
 				variant={range === r.value ? 'default' : 'ghost'}
 				size="sm"
-				onclick={() => goto(`?range=${r.value}`, { keepFocus: true, noScroll: true })}
+				onclick={() => goto(navUrl(r.value), { keepFocus: true, noScroll: true })}
 			>
 				{r.label}
+			</Button>
+		{/each}
+		<span class="bg-border mx-2 h-5 w-px"></span>
+		{#each sourceOptions as s, i (s)}
+			<Button
+				variant={source === s ? 'secondary' : 'ghost'}
+				size="sm"
+				class="text-xs"
+				onclick={() => goto(navUrl(range, s), { keepFocus: true, noScroll: true })}
+			>
+				{SOURCE_LABELS[s]}
 			</Button>
 		{/each}
 	</div>

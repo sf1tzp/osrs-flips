@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
 import { sql } from './index';
+import { DEFAULT_SOURCES, type PriceHistoryRange, type PriceHistorySource } from '$lib/price-history';
+
+export { PRICE_HISTORY_RANGES, PRICE_HISTORY_SOURCES, SOURCE_OPTIONS, DEFAULT_SOURCES, SOURCE_LABELS } from '$lib/price-history';
+export type { PriceHistoryRange, PriceHistorySource } from '$lib/price-history';
 
 const WIKI_IMAGE_BASE = 'https://oldschool.runescape.wiki/images';
 
@@ -23,8 +27,13 @@ export interface DashboardItem {
 	volume24h: number | null;
 }
 
-export const PRICE_HISTORY_RANGES = ['1h', '6h', '24h', '7d', '30d'] as const;
-export type PriceHistoryRange = (typeof PRICE_HISTORY_RANGES)[number];
+const RANGE_INTERVALS: Record<PriceHistoryRange, string> = {
+	'1h': '1 hour',
+	'6h': '6 hours',
+	'24h': '24 hours',
+	'7d': '7 days',
+	'30d': '30 days',
+};
 
 export interface PriceHistoryPoint {
 	time: string;
@@ -36,11 +45,14 @@ export interface PriceHistoryPoint {
 
 export async function getPriceHistory(
 	itemId: number,
-	range: PriceHistoryRange
+	range: PriceHistoryRange,
+	source?: PriceHistorySource
 ): Promise<PriceHistoryPoint[]> {
+	const effectiveSource = source ?? DEFAULT_SOURCES[range];
+	const interval = RANGE_INTERVALS[range];
 	let rows;
 
-	if (range === '1h') {
+	if (effectiveSource === 'observations') {
 		rows = await sql`
 			SELECT
 				observed_at AS time,
@@ -50,23 +62,10 @@ export async function getPriceHistory(
 				NULL::bigint AS low_volume
 			FROM price_observations
 			WHERE item_id = ${itemId}
-				AND observed_at >= NOW() - INTERVAL '1 hour'
+				AND observed_at >= NOW() - ${interval}::interval
 			ORDER BY observed_at
 		`;
-	} else if (range === '6h') {
-		rows = await sql`
-			SELECT
-				observed_at AS time,
-				high_price,
-				low_price,
-				NULL::bigint AS high_volume,
-				NULL::bigint AS low_volume
-			FROM price_observations
-			WHERE item_id = ${itemId}
-				AND observed_at >= NOW() - INTERVAL '6 hours'
-			ORDER BY observed_at
-		`;
-	} else if (range === '24h') {
+	} else if (effectiveSource === '5m') {
 		rows = await sql`
 			SELECT
 				bucket_start AS time,
@@ -76,10 +75,10 @@ export async function getPriceHistory(
 				low_price_volume AS low_volume
 			FROM price_buckets_5m
 			WHERE item_id = ${itemId}
-				AND bucket_start >= NOW() - INTERVAL '24 hours'
+				AND bucket_start >= NOW() - ${interval}::interval
 			ORDER BY bucket_start
 		`;
-	} else if (range === '7d') {
+	} else if (effectiveSource === '1h') {
 		rows = await sql`
 			SELECT
 				bucket_start AS time,
@@ -89,7 +88,7 @@ export async function getPriceHistory(
 				low_price_volume AS low_volume
 			FROM price_buckets_1h
 			WHERE item_id = ${itemId}
-				AND bucket_start >= NOW() - INTERVAL '7 days'
+				AND bucket_start >= NOW() - ${interval}::interval
 			ORDER BY bucket_start
 		`;
 	} else {
@@ -102,7 +101,7 @@ export async function getPriceHistory(
 				low_price_volume AS low_volume
 			FROM price_buckets_24h
 			WHERE item_id = ${itemId}
-				AND bucket_start >= NOW() - INTERVAL '30 days'
+				AND bucket_start >= NOW() - ${interval}::interval
 			ORDER BY bucket_start
 		`;
 	}
