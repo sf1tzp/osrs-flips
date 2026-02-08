@@ -144,11 +144,11 @@ export async function getDashboardItems(): Promise<DashboardItem[]> {
 			p.low_price,
 			CASE
 				WHEN p.high_price IS NOT NULL AND p.low_price IS NOT NULL
-				THEN p.high_price - p.low_price
+				THEN p.high_price - p.low_price - LEAST(FLOOR(p.high_price * 0.02), 5000000)
 			END AS margin,
 			CASE
 				WHEN p.high_price IS NOT NULL AND p.low_price IS NOT NULL AND p.low_price > 0
-				THEN ROUND(((p.high_price - p.low_price)::numeric / p.low_price) * 100, 1)
+				THEN ROUND(((p.high_price - p.low_price - LEAST(FLOOR(p.high_price * 0.02), 5000000))::numeric / p.low_price) * 100, 1)
 			END AS margin_pct,
 			v.total_volume
 		FROM items i

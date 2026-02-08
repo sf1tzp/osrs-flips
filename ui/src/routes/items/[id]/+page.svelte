@@ -250,12 +250,14 @@
 										</span>
 									</div>
 									{#if d.highPrice != null && d.lowPrice != null}
+										{@const tax = Math.min(Math.floor(d.highPrice * 0.02), 5_000_000)}
+										{@const margin = d.highPrice - d.lowPrice - tax}
 										<div
 											class="border-border mt-1 flex items-center justify-between gap-4 border-t pt-1"
 										>
 											<span class="text-muted-foreground">Margin</span>
 											<span class="font-mono font-medium tabular-nums">
-												{(d.highPrice - d.lowPrice).toLocaleString()} gp
+												{margin.toLocaleString()} gp
 											</span>
 										</div>
 									{/if}
