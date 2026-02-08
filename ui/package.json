@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "vite dev --open --host 0.0.0.0",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -26,6 +26,7 @@
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.18",
+		"@types/d3-scale": "^4.0.9",
 		"@types/node": "^22",
 		"clsx": "^2.1.1",
 		"drizzle-kit": "^0.31.8",
@@ -47,6 +48,7 @@
 	},
 	"dependencies": {
 		"@sveltejs/adapter-node": "^5.5.2",
-		"postgres": "^3.4.8"
+		"postgres": "^3.4.8",
+		"virtua": "^0.48.5"
 	}
 }

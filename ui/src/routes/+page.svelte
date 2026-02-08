@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import * as Table from '$lib/components/ui/table';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
+	import { VList } from 'virtua/svelte';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
@@ -88,73 +88,66 @@
 	</div>
 
 	<div class="rounded-lg border">
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					{#each columns as col}
-						<Table.Head>
-							<button
-								class="inline-flex w-full cursor-pointer items-center gap-1 select-none"
-								onclick={() => toggleSort(col.key)}
-							>
-								{col.label}
-								{#if sortKey === col.key}
-									{#if sortDir === 'asc'}
-										<ArrowUp class="size-3.5" />
-									{:else}
-										<ArrowDown class="size-3.5" />
-									{/if}
-								{:else}
-									<ArrowUpDown class="size-3.5 opacity-30" />
-								{/if}
-							</button>
-						</Table.Head>
-					{/each}
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each filtered as item (item.itemId)}
-					<Table.Row
-						class="cursor-pointer"
-						onclick={() => goto(`/items/${item.itemId}`)}
+		<!-- Header -->
+		<div class="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b bg-muted/50">
+			{#each columns as col}
+				<div class="px-4 py-3 text-sm font-medium text-muted-foreground">
+					<button
+						class="inline-flex w-full cursor-pointer items-center gap-1 select-none"
+						onclick={() => toggleSort(col.key)}
 					>
-						<Table.Cell class="font-medium">
+						{col.label}
+						{#if sortKey === col.key}
+							{#if sortDir === 'asc'}
+								<ArrowUp class="size-3.5" />
+							{:else}
+								<ArrowDown class="size-3.5" />
+							{/if}
+						{:else}
+							<ArrowUpDown class="size-3.5 opacity-30" />
+						{/if}
+					</button>
+				</div>
+			{/each}
+		</div>
+
+		<!-- Virtualized rows -->
+		{#if filtered.length === 0}
+			<div class="text-muted-foreground flex h-24 items-center justify-center text-sm">
+				No items found.
+			</div>
+		{:else}
+			<VList data={filtered} style="height: calc(100vh - 200px);" getKey={(item) => item.itemId}>
+				{#snippet children(item: DashboardItem)}
+					<div
+						class="grid cursor-pointer grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b transition-colors hover:bg-muted/50"
+						onclick={() => goto(`/items/${item.itemId}`)}
+						role="link"
+						tabindex="0"
+						onkeydown={(e) => e.key === 'Enter' && goto(`/items/${item.itemId}`)}
+					>
+						<div class="px-4 py-3 text-sm font-medium">
 							<span class="inline-flex items-center gap-2">
-								<!-- {#if item.icon}
-									<img
-										src={item.icon}
-										alt={item.name}
-										loading="lazy"
-										class="size-6 object-contain"
-									/>
-								{/if} -->
 								{item.name}
 								{#if !item.members}
 									<Badge variant="outline" class="text-[10px] leading-tight">Free-To-Play</Badge>
 								{/if}
 							</span>
-						</Table.Cell>
-						<Table.Cell class="tabular-nums">{formatGp(item.highPrice)}</Table.Cell>
-						<Table.Cell class="tabular-nums">{formatGp(item.lowPrice)}</Table.Cell>
-						<Table.Cell class="tabular-nums {marginColor(item.margin)}">
+						</div>
+						<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.highPrice)}</div>
+						<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.lowPrice)}</div>
+						<div class="px-4 py-3 text-sm tabular-nums {marginColor(item.margin)}">
 							{formatGp(item.margin)}
-						</Table.Cell>
-						<Table.Cell class="tabular-nums {marginColor(item.marginPct)}">
+						</div>
+						<div class="px-4 py-3 text-sm tabular-nums {marginColor(item.marginPct)}">
 							{item.marginPct != null ? `${item.marginPct}%` : '—'}
-						</Table.Cell>
-						<Table.Cell class="tabular-nums">{formatGp(item.buyLimit)}</Table.Cell>
-						<Table.Cell class="tabular-nums">{formatVolume(item.volume24h)}</Table.Cell>
-					</Table.Row>
-				{/each}
-				{#if filtered.length === 0}
-					<Table.Row>
-						<Table.Cell colspan={7} class="text-muted-foreground h-24 text-center">
-							No items found.
-						</Table.Cell>
-					</Table.Row>
-				{/if}
-			</Table.Body>
-		</Table.Root>
+						</div>
+						<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.buyLimit)}</div>
+						<div class="px-4 py-3 text-sm tabular-nums">{formatVolume(item.volume24h)}</div>
+					</div>
+				{/snippet}
+			</VList>
+		{/if}
 	</div>
 
 	<p class="text-muted-foreground mt-3 text-sm">
