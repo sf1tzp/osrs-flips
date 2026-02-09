@@ -42,7 +42,7 @@ func TestDefaultBackgroundSyncConfig(t *testing.T) {
 		t.Errorf("RateLimit = %v, want 100ms", cfg.RateLimit)
 	}
 
-	expectedBuckets := []string{"5m", "1h", "24h"}
+	expectedBuckets := []string{"24h", "1h", "5m"}
 	if len(cfg.BucketSizes) != len(expectedBuckets) {
 		t.Errorf("BucketSizes length = %d, want %d", len(cfg.BucketSizes), len(expectedBuckets))
 	}

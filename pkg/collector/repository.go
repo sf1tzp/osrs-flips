@@ -311,83 +311,83 @@ func (r *Repository) GetItemCount(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-// GetMissingBucketTimestamps returns timestamps in the retention window that have zero
-// items with data (i.e., have never been fetched). Results are ordered oldest-first
-// so backfill progresses chronologically from the start of the retention window.
-func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize string, retention time.Duration, limit int) ([]time.Time, error) {
-	tableName := bucketTableName(bucketSize)
-
-	// Calculate the retention window
-	var windowStart time.Time
-	if retention > 0 {
-		windowStart = time.Now().UTC().Add(-retention)
-	} else {
-		windowStart = time.Now().UTC().AddDate(-1, 0, 0)
-	}
-
-	// Calculate bucket interval and truncation unit for generate_series.
-	// The truncation must align to the bucket boundary so the API accepts the timestamps.
-	// 24h buckets must start at midnight UTC, 1h at the hour, 5m at the hour (divides evenly).
-	var interval, truncUnit string
+// bucketDuration returns the time.Duration for a bucket size.
+func bucketDuration(bucketSize string) time.Duration {
 	switch bucketSize {
 	case "5m":
-		interval = "5 minutes"
-		truncUnit = "hour"
+		return 5 * time.Minute
 	case "1h":
-		interval = "1 hour"
-		truncUnit = "hour"
+		return time.Hour
 	case "24h":
-		interval = "24 hours"
-		truncUnit = "day"
+		return 24 * time.Hour
 	default:
-		interval = "5 minutes"
-		truncUnit = "hour"
+		return 5 * time.Minute
+	}
+}
+
+// GetMissingBucketTimestamps returns timestamps in the retention window that have
+// never been fetched successfully. Results are ordered newest-first so recent gaps
+// (most likely to have API data) get priority.
+//
+// Approach: generate expected timestamps in Go, query the DB for what we already
+// have (bucket data + no-data markers), return the difference.
+func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize string, retention time.Duration, limit int) ([]time.Time, error) {
+	tableName := bucketTableName(bucketSize)
+	interval := bucketDuration(bucketSize)
+
+	now := time.Now().UTC()
+	var windowStart time.Time
+	if retention > 0 {
+		windowStart = now.Add(-retention)
+	} else {
+		windowStart = now.AddDate(-1, 0, 0)
+	}
+	// Exclude the current incomplete bucket
+	windowEnd := now.Add(-interval)
+
+	// Align windowStart up to the next bucket boundary
+	aligned := windowStart.Truncate(interval)
+	if aligned.Before(windowStart) {
+		aligned = aligned.Add(interval)
 	}
 
-	// generate_series enumerates all expected timestamps in the retention window.
-	// LEFT JOIN against actual bucket counts to find timestamps with insufficient data.
-	// We truncate windowStart down to the nearest bucket boundary for clean alignment.
-	// Note: tableName and truncUnit are from controlled code, not user input.
+	// Query timestamps we can skip: already have data OR marked as no-data.
+	// Note: tableName is from controlled bucketTableName(), not user input.
 	query := fmt.Sprintf(`
-		WITH expected_timestamps AS (
-			SELECT gs AS bucket_ts
-			FROM generate_series(
-				date_trunc('%s', $1::timestamptz),
-				date_trunc('%s', NOW()),
-				$2::interval
-			) AS gs
-			WHERE gs >= $1::timestamptz
-			  AND gs <= NOW() - $2::interval
-		),
-		actual_counts AS (
-			SELECT bucket_start, COUNT(*) AS item_count
-			FROM %s
-			WHERE bucket_start >= $1::timestamptz
-			GROUP BY bucket_start
-		)
-		SELECT et.bucket_ts
-		FROM expected_timestamps et
-		LEFT JOIN actual_counts ac ON et.bucket_ts = ac.bucket_start
-		WHERE COALESCE(ac.item_count, 0) = 0
-		ORDER BY et.bucket_ts ASC
-		LIMIT $3
-	`, truncUnit, truncUnit, tableName)
+		SELECT DISTINCT bucket_start FROM %s WHERE bucket_start >= $1
+		UNION ALL
+		SELECT bucket_start FROM sync_no_data WHERE bucket_size = $2 AND bucket_start >= $1
+	`, tableName)
 
-	rows, err := r.pool.Query(ctx, query, windowStart, interval, limit)
+	rows, err := r.pool.Query(ctx, query, windowStart, bucketSize)
 	if err != nil {
-		return nil, fmt.Errorf("query missing bucket timestamps: %w", err)
+		return nil, fmt.Errorf("query existing timestamps: %w", err)
 	}
 	defer rows.Close()
 
-	var timestamps []time.Time
+	skip := make(map[time.Time]bool)
 	for rows.Next() {
 		var ts time.Time
 		if err := rows.Scan(&ts); err != nil {
 			return nil, fmt.Errorf("scan timestamp: %w", err)
 		}
-		timestamps = append(timestamps, ts)
+		skip[ts.UTC()] = true
 	}
-	return timestamps, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate timestamps: %w", err)
+	}
+
+	// Walk backwards from windowEnd to find missing timestamps (newest first)
+	end := windowEnd.Truncate(interval)
+
+	var missing []time.Time
+	for ts := end; !ts.Before(aligned) && len(missing) < limit; ts = ts.Add(-interval) {
+		if !skip[ts] {
+			missing = append(missing, ts)
+		}
+	}
+
+	return missing, nil
 }
 
 // GetItemsNeedingSync returns item IDs that need historical data sync.
@@ -645,4 +645,18 @@ func (r *Repository) GetItemsWithZeroData(ctx context.Context, bucketSize string
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+// RecordNoData records that the API returned no data for a given bucket timestamp,
+// preventing it from being retried on subsequent sync cycles.
+func (r *Repository) RecordNoData(ctx context.Context, bucketSize string, bucketStart time.Time) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO sync_no_data (bucket_size, bucket_start)
+		VALUES ($1, $2)
+		ON CONFLICT (bucket_size, bucket_start) DO NOTHING
+	`, bucketSize, bucketStart)
+	if err != nil {
+		return fmt.Errorf("record no data: %w", err)
+	}
+	return nil
 }

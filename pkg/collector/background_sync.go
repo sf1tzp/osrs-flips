@@ -22,7 +22,7 @@ var RetentionPolicy = map[string]time.Duration{
 
 // BackgroundSyncConfig configures the background sync service.
 type BackgroundSyncConfig struct {
-	BucketSizes        []string      // Bucket sizes to sync (default: ["5m", "1h", "24h"])
+	BucketSizes        []string      // Bucket sizes to sync (default: ["24h", "1h", "5m"])
 	RunInterval        time.Duration // How often to run a full sync cycle (default: 5m)
 	TimestampsPerCycle int           // Max timestamps to process per bucket per cycle (default: 50)
 	RateLimit          time.Duration // Minimum delay between API calls (default: 100ms)
@@ -31,7 +31,7 @@ type BackgroundSyncConfig struct {
 // DefaultBackgroundSyncConfig returns sensible defaults.
 func DefaultBackgroundSyncConfig() *BackgroundSyncConfig {
 	return &BackgroundSyncConfig{
-		BucketSizes:        []string{"5m", "1h", "24h"},
+		BucketSizes:        []string{"24h", "1h", "5m"},
 		RunInterval:        5 * time.Minute,
 		TimestampsPerCycle: 50,
 		RateLimit:          100 * time.Millisecond,
@@ -275,6 +275,8 @@ func (b *BackgroundSync) syncTimestamp(ctx context.Context, bucketSize string, t
 	}
 
 	if len(resp.Data) == 0 {
+		// Record that this timestamp had no API data so we don't retry it
+		_ = b.repo.RecordNoData(ctx, bucketSize, ts)
 		return 0, nil
 	}
 
@@ -316,6 +318,8 @@ func (b *BackgroundSync) syncTimestamp(ctx context.Context, bucketSize string, t
 	}
 
 	if len(buckets) == 0 {
+		// All data points were filtered out (nil prices) — treat as no data
+		_ = b.repo.RecordNoData(ctx, bucketSize, ts)
 		return 0, nil
 	}
 

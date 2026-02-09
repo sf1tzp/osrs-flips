@@ -18,6 +18,8 @@
 	let sortKey = $state<SortKey>('marginPct');
 	let sortDir = $state<'asc' | 'desc'>('desc');
 	let showTax = $state(true);
+	let minMarginInput = $state('');
+	let minMargin = $derived(Number(minMarginInput) || 0);
 
 	function calcTax(highPrice: number): number {
 		return Math.min(Math.floor(highPrice * 0.02), 5_000_000);
@@ -49,6 +51,12 @@
 		let items = data.items;
 		if (q) {
 			items = items.filter((i) => i.name.toLowerCase().includes(q));
+		}
+		if (minMargin > 0) {
+			items = items.filter((i) => {
+				const m = getMargin(i);
+				return m != null && m >= minMargin;
+			});
 		}
 		return items.toSorted((a, b) => {
 			let av: string | number | boolean | null;
@@ -109,6 +117,13 @@
 				<Switch bind:checked={showTax} />
 				<span class="text-muted-foreground">GE Tax</span>
 			</label>
+			<div class="w-28">
+				<Input
+					type="number"
+					placeholder="Min margin"
+					bind:value={minMarginInput}
+				/>
+			</div>
 			<div class="relative w-full sm:w-72">
 				<Search class="text-muted-foreground absolute left-2.5 top-2.5 size-4" />
 				<Input
