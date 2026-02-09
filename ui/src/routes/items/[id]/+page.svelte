@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import {
 		Area,
 		Axis,
@@ -23,6 +24,7 @@
 		type PriceHistoryRange,
 		type PriceHistorySource,
 	} from '$lib/price-history';
+	import type { BucketCoverage } from '$lib/server/db/queries';
 
 	const priceTimeScale = scaleTime();
 	const priceYScale = scaleLinear();
@@ -45,6 +47,7 @@
 	let { data } = $props();
 	let item = $derived(data.item);
 	let priceHistory = $derived(data.priceHistory);
+	let coverage = $derived(data.coverage as BucketCoverage[]);
 	let range = $derived(data.range as PriceHistoryRange);
 	let source = $derived(data.source as PriceHistorySource);
 
@@ -119,6 +122,38 @@
 
 	function defined(d: { highPrice: number | null; lowPrice: number | null }): boolean {
 		return d.highPrice != null && d.lowPrice != null;
+	}
+
+	function formatDate(iso: string): string {
+		const d = new Date(iso);
+		return d.toLocaleDateString(undefined, {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		});
+	}
+
+	function formatDuration(ms: number): string {
+		const minutes = Math.round(ms / 60_000);
+		if (minutes < 60) return `${minutes}m`;
+		const hours = Math.floor(minutes / 60);
+		const mins = minutes % 60;
+		if (hours < 24) return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+		const days = Math.floor(hours / 24);
+		const hrs = hours % 24;
+		return hrs > 0 ? `${days}d ${hrs}h` : `${days}d`;
+	}
+
+	function coveragePct(c: BucketCoverage): number {
+		if (c.expectedBuckets === 0) return 0;
+		return Math.min((c.totalBuckets / c.expectedBuckets) * 100, 100);
+	}
+
+	function dataAge(iso: string): string {
+		const ms = Date.now() - new Date(iso).getTime();
+		return formatDuration(ms) + ' ago';
 	}
 </script>
 
@@ -310,4 +345,95 @@
 			</ChartContainer>
 		{/if}
 	{/if}
+
+	<!-- Data Coverage -->
+	<details class="mt-8 group">
+		<summary
+			class="flex cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground select-none"
+		>
+			<ChevronDown
+				class="size-4 transition-transform group-open:rotate-180"
+			/>
+			Data Coverage
+		</summary>
+
+		<div class="mt-3 grid gap-3">
+			{#each coverage as c (c.bucket)}
+				{@const pct = coveragePct(c)}
+				<div class="rounded-lg border p-4">
+					<div class="flex items-center justify-between mb-2">
+						<div class="flex items-center gap-2">
+							<span class="font-mono text-sm font-semibold">{c.bucket}</span>
+							<span class="text-xs text-muted-foreground">({c.retention} retention)</span>
+						</div>
+						{#if c.totalBuckets > 0}
+							<span class="text-xs font-mono tabular-nums {pct >= 95 ? 'text-green-500' : pct >= 80 ? 'text-yellow-500' : 'text-red-500'}">
+								{pct.toFixed(1)}%
+							</span>
+						{/if}
+					</div>
+
+					{#if c.oldest && c.newest}
+						<!-- Coverage bar -->
+						<div class="mb-3 h-2 w-full rounded-full bg-muted overflow-hidden">
+							<div
+								class="h-full rounded-full {pct >= 95 ? 'bg-green-500' : pct >= 80 ? 'bg-yellow-500' : 'bg-red-500'}"
+								style="width: {pct}%"
+							></div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+							<div>
+								<span class="text-muted-foreground">First data</span>
+								<div class="font-mono tabular-nums">{formatDate(c.oldest)}</div>
+							</div>
+							<div>
+								<span class="text-muted-foreground">Latest data</span>
+								<div class="font-mono tabular-nums">
+									{formatDate(c.newest)}
+									<span class="text-muted-foreground ml-1">({dataAge(c.newest)})</span>
+								</div>
+							</div>
+							<div>
+								<span class="text-muted-foreground">Buckets</span>
+								<div class="font-mono tabular-nums">
+									{c.totalBuckets.toLocaleString()} / {c.expectedBuckets.toLocaleString()}
+								</div>
+							</div>
+							<div>
+								<span class="text-muted-foreground">Gaps</span>
+								<div class="font-mono tabular-nums">
+									{c.gaps.length === 0 ? 'None' : c.gaps.length}
+								</div>
+							</div>
+						</div>
+
+						{#if c.gaps.length > 0}
+							<div class="mt-3 border-t pt-2">
+								<div class="text-xs text-muted-foreground mb-1">
+									Recent gaps (newest first)
+								</div>
+								<div class="max-h-40 overflow-y-auto space-y-1">
+									{#each c.gaps as gap}
+										<div
+											class="flex items-center justify-between text-xs font-mono tabular-nums rounded px-2 py-1 bg-muted/50"
+										>
+											<span>
+												{formatDate(gap.start)} &rarr; {formatDate(gap.end)}
+											</span>
+											<span class="text-muted-foreground ml-2 whitespace-nowrap">
+												{formatDuration(gap.durationMs)}, {gap.missingCount} missing
+											</span>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					{:else}
+						<div class="text-xs text-muted-foreground">No data</div>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	</details>
 </div>

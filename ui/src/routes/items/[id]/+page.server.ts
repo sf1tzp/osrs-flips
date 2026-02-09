@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import {
 	getPriceHistory,
+	getItemDataCoverage,
 	PRICE_HISTORY_RANGES,
 	SOURCE_OPTIONS,
 	DEFAULT_SOURCES,
@@ -30,9 +31,10 @@ export const load: PageServerLoad = async ({ params, url }) => {
 			? (sourceParam as PriceHistorySource)
 			: DEFAULT_SOURCES[range];
 
-	const [[item], priceHistory] = await Promise.all([
+	const [[item], priceHistory, coverage] = await Promise.all([
 		db.select().from(items).where(eq(items.itemId, itemId)).limit(1),
 		getPriceHistory(itemId, range, source),
+		getItemDataCoverage(itemId),
 	]);
 
 	if (!item) error(404, 'Item not found');
@@ -40,6 +42,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 	return {
 		item: { ...item, icon: item.icon ? wikiIconUrl(item.icon) : null },
 		priceHistory,
+		coverage,
 		range,
 		source,
 	};

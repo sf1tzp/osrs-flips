@@ -115,6 +115,97 @@ export async function getPriceHistory(
 	}));
 }
 
+export interface DataGap {
+	start: string;
+	end: string;
+	durationMs: number;
+	missingCount: number;
+}
+
+export interface BucketCoverage {
+	bucket: string;
+	retention: string;
+	oldest: string | null;
+	newest: string | null;
+	totalBuckets: number;
+	expectedBuckets: number;
+	gaps: DataGap[];
+}
+
+const BUCKET_CONFIGS = [
+	{ name: '5m', table: 'price_buckets_5m', interval: '5 minutes', seconds: 300, retention: '7d' },
+	{ name: '1h', table: 'price_buckets_1h', interval: '1 hour', seconds: 3600, retention: '1y' },
+	{ name: '24h', table: 'price_buckets_24h', interval: '24 hours', seconds: 86400, retention: '5y' },
+] as const;
+
+async function getBucketCoverage(
+	itemId: number,
+	config: (typeof BUCKET_CONFIGS)[number]
+): Promise<BucketCoverage> {
+	const [summary, gapRows] = await Promise.all([
+		sql.unsafe(
+			`SELECT
+				MIN(bucket_start) as oldest,
+				MAX(bucket_start) as newest,
+				COUNT(*)::int as total
+			FROM ${config.table}
+			WHERE item_id = $1`,
+			[itemId]
+		),
+		sql.unsafe(
+			`WITH ordered AS (
+				SELECT
+					bucket_start,
+					LEAD(bucket_start) OVER (ORDER BY bucket_start) as next_start
+				FROM ${config.table}
+				WHERE item_id = $1
+			)
+			SELECT
+				bucket_start + $2::interval as gap_start,
+				next_start as gap_end
+			FROM ordered
+			WHERE next_start IS NOT NULL
+				AND next_start - bucket_start > $2::interval
+			ORDER BY bucket_start DESC
+			LIMIT 50`,
+			[itemId, config.interval]
+		),
+	]);
+
+	const row = summary[0];
+	const oldest = row.oldest ? new Date(row.oldest).toISOString() : null;
+	const newest = row.newest ? new Date(row.newest).toISOString() : null;
+	const totalBuckets = row.total as number;
+
+	let expectedBuckets = 0;
+	if (oldest && newest) {
+		const rangeMs = new Date(newest).getTime() - new Date(oldest).getTime();
+		expectedBuckets = Math.floor(rangeMs / (config.seconds * 1000)) + 1;
+	}
+
+	const gaps: DataGap[] = gapRows.map((g) => {
+		const start = new Date(g.gap_start).toISOString();
+		const end = new Date(g.gap_end).toISOString();
+		const durationMs = new Date(end).getTime() - new Date(start).getTime();
+		const missingCount = Math.round(durationMs / (config.seconds * 1000));
+		return { start, end, durationMs, missingCount };
+	});
+
+	return {
+		bucket: config.name,
+		retention: config.retention,
+		oldest,
+		newest,
+		totalBuckets,
+		expectedBuckets,
+		gaps,
+	};
+}
+
+export async function getItemDataCoverage(itemId: number): Promise<BucketCoverage[]> {
+	return Promise.all(BUCKET_CONFIGS.map((config) => getBucketCoverage(itemId, config)));
+}
+
 export async function getDashboardItems(): Promise<DashboardItem[]> {
 	const rows = await sql`
 		WITH latest_prices AS (
