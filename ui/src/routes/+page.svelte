@@ -8,6 +8,7 @@
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import Search from '@lucide/svelte/icons/search';
+	import ItemRowDetail from '$lib/components/item-row-detail.svelte';
 	import type { DashboardItem } from '$lib/server/db/queries';
 
 	let { data } = $props();
@@ -20,6 +21,11 @@
 	let showTax = $state(true);
 	let minMarginInput = $state('');
 	let minMargin = $derived(Number(minMarginInput) || 0);
+	let expandedId = $state<number | null>(null);
+
+	function toggleExpand(itemId: number) {
+		expandedId = expandedId === itemId ? null : itemId;
+	}
 
 	function calcTax(highPrice: number): number {
 		return Math.min(Math.floor(highPrice * 0.02), 5_000_000);
@@ -171,35 +177,41 @@
 				{#snippet children(item: DashboardItem)}
 					{@const margin = getMargin(item)}
 					{@const marginPct = getMarginPct(item)}
-					<div
-						class="grid cursor-pointer grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b transition-colors hover:bg-muted/50"
-						onclick={() => goto(`/items/${item.itemId}`)}
-						role="link"
-						tabindex="0"
-						onkeydown={(e) => e.key === 'Enter' && goto(`/items/${item.itemId}`)}
-					>
-						<div class="px-4 py-3 text-sm font-medium">
-							<a
-								href="/items/{item.itemId}"
-								class="inline-flex items-center gap-2 hover:underline"
-								onclick={(e) => e.stopPropagation()}
-							>
-								{item.name}
-								{#if !item.members}
-									<Badge variant="outline" class="text-[10px] leading-tight">Free-To-Play</Badge>
-								{/if}
-							</a>
+					{@const isExpanded = expandedId === item.itemId}
+					<div class="border-b {isExpanded ? 'bg-muted/30' : ''}">
+						<div
+							class="grid cursor-pointer grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] transition-colors hover:bg-muted/50"
+							onclick={() => toggleExpand(item.itemId)}
+							role="button"
+							tabindex="0"
+							onkeydown={(e) => e.key === 'Enter' && toggleExpand(item.itemId)}
+						>
+							<div class="px-4 py-3 text-sm font-medium">
+								<a
+									href="/items/{item.itemId}"
+									class="inline-flex items-center gap-2 hover:underline"
+									onclick={(e) => e.stopPropagation()}
+								>
+									{item.name}
+									{#if !item.members}
+										<Badge variant="outline" class="text-[10px] leading-tight">Free-To-Play</Badge>
+									{/if}
+								</a>
+							</div>
+							<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.highPrice)}</div>
+							<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.lowPrice)}</div>
+							<div class="px-4 py-3 text-sm tabular-nums {marginColor(margin)}">
+								{formatGp(margin)}
+							</div>
+							<div class="px-4 py-3 text-sm tabular-nums {marginColor(marginPct)}">
+								{marginPct != null ? `${marginPct}%` : '—'}
+							</div>
+							<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.buyLimit)}</div>
+							<div class="px-4 py-3 text-sm tabular-nums">{formatVolume(item.volume24h)}</div>
 						</div>
-						<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.highPrice)}</div>
-						<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.lowPrice)}</div>
-						<div class="px-4 py-3 text-sm tabular-nums {marginColor(margin)}">
-							{formatGp(margin)}
-						</div>
-						<div class="px-4 py-3 text-sm tabular-nums {marginColor(marginPct)}">
-							{marginPct != null ? `${marginPct}%` : '—'}
-						</div>
-						<div class="px-4 py-3 text-sm tabular-nums">{formatGp(item.buyLimit)}</div>
-						<div class="px-4 py-3 text-sm tabular-nums">{formatVolume(item.volume24h)}</div>
+						{#if isExpanded}
+							<ItemRowDetail itemId={item.itemId} />
+						{/if}
 					</div>
 				{/snippet}
 			</VList>
