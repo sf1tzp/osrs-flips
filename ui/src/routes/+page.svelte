@@ -27,7 +27,8 @@
 
 	function getMargin(item: DashboardItem): number | null {
 		if (item.highPrice == null || item.lowPrice == null) return null;
-		const raw = item.highPrice - item.lowPrice;
+		let raw = item.highPrice - item.lowPrice;
+		if (item.itemId == 13190) raw = raw - .1 * item.highPrice; // oldchool bonds require an additional 10% fee
 		return showTax ? raw - calcTax(item.highPrice) : raw;
 	}
 
