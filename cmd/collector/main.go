@@ -22,7 +22,6 @@ var (
 	skipBackfill           = flag.Bool("skip-backfill", false, "Skip background sync (run poller only)")
 	syncInterval           = flag.Duration("sync-interval", 5*time.Minute, "Background sync interval")
 	syncTimestampsPerCycle = flag.Int("sync-timestamps-per-cycle", 50, "Max timestamps to sync per bucket per cycle")
-	syncMinItemThreshold   = flag.Int("sync-min-item-threshold", 100, "Timestamps with fewer items than this are re-fetched")
 	enableVolumePolling    = flag.Bool("enable-volume-polling", false, "Enable volume polling for items with poll_volume=true")
 	volumePollInterval     = flag.Duration("volume-poll-interval", 5*time.Minute, "Volume polling interval")
 
@@ -167,7 +166,6 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 	syncConfig := collector.DefaultBackgroundSyncConfig()
 	syncConfig.RunInterval = *syncInterval
 	syncConfig.TimestampsPerCycle = *syncTimestampsPerCycle
-	syncConfig.MinItemThreshold = *syncMinItemThreshold
 
 	// Configure volume poller
 	volumePollerConfig := collector.DefaultVolumePollerConfig()
@@ -196,7 +194,6 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 		logger.WithComponent("collector").WithFields(map[string]interface{}{
 			"sync_interval":        syncConfig.RunInterval.String(),
 			"timestamps_per_cycle": syncConfig.TimestampsPerCycle,
-			"min_item_threshold":   syncConfig.MinItemThreshold,
 			"bucket_sizes":         syncConfig.BucketSizes,
 		}).Info("background sync started")
 	}
