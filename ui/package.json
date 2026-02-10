@@ -20,7 +20,7 @@
 		"@eslint/compat": "^2.0.1",
 		"@eslint/js": "^9.39.2",
 		"@internationalized/date": "^3.11.0",
-		"@lucide/svelte": "^0.563.1",
+		"@lucide/svelte": "^0.561.0",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/kit": "^2.50.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
@@ -50,6 +50,7 @@
 	},
 	"dependencies": {
 		"@sveltejs/adapter-node": "^5.5.2",
+		"idb": "^8.0.3",
 		"mode-watcher": "^1.1.0",
 		"postgres": "^3.4.8",
 		"virtua": "^0.48.5"

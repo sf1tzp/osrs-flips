@@ -8,10 +8,32 @@
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import Search from '@lucide/svelte/icons/search';
+	import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
 	import ItemRowDetail from '$lib/components/item-row-detail.svelte';
+	import TradeDialog from '$lib/components/trade-dialog.svelte';
 	import type { DashboardItem } from '$lib/server/db/queries';
 
 	let { data } = $props();
+
+	let tradeDialogOpen = $state(false);
+	let tradeDialogPrefill = $state<{
+		itemId: number;
+		itemName: string;
+		itemIcon: string | null;
+		suggestedPrice: number;
+		suggestedType: 'buy' | 'sell';
+	} | null>(null);
+
+	function openQuickTrade(item: DashboardItem, type: 'buy' | 'sell') {
+		tradeDialogPrefill = {
+			itemId: item.itemId,
+			itemName: item.name,
+			itemIcon: item.icon,
+			suggestedPrice: type === 'buy' ? (item.lowPrice ?? 0) : (item.highPrice ?? 0),
+			suggestedType: type
+		};
+		tradeDialogOpen = true;
+	}
 
 	type SortKey = keyof DashboardItem;
 
@@ -210,7 +232,20 @@
 							<div class="px-4 py-3 text-sm tabular-nums">{formatVolume(item.volume24h)}</div>
 						</div>
 						{#if isExpanded}
-							<ItemRowDetail itemId={item.itemId} />
+							<div class="flex items-center">
+								<ItemRowDetail itemId={item.itemId} />
+								<div class="ml-auto flex gap-2 px-4">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+										title="Quick trade"
+										onclick={(e) => { e.stopPropagation(); openQuickTrade(item, 'buy'); }}
+									>
+										<ArrowRightLeft class="size-3.5" />
+										Trade
+									</button>
+								</div>
+							</div>
 						{/if}
 					</div>
 				{/snippet}
@@ -222,3 +257,9 @@
 		{filtered.length} items
 	</p>
 </div>
+
+<TradeDialog
+	bind:open={tradeDialogOpen}
+	items={data.items}
+	prefill={tradeDialogPrefill}
+/>

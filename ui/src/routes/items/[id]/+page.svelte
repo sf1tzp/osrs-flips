@@ -25,6 +25,7 @@
 		type PriceHistorySource,
 	} from '$lib/price-history';
 	import type { BucketCoverage } from '$lib/server/db/queries';
+	import TradeDialog from '$lib/components/trade-dialog.svelte';
 
 	const priceTimeScale = scaleTime();
 	const priceYScale = scaleLinear();
@@ -50,6 +51,26 @@
 	let coverage = $derived(data.coverage as BucketCoverage[]);
 	let range = $derived(data.range as PriceHistoryRange);
 	let source = $derived(data.source as PriceHistorySource);
+
+	let tradeDialogOpen = $state(false);
+	let tradeDialogType = $state<'buy' | 'sell'>('buy');
+
+	// Latest prices from history (last data point)
+	let latestHigh = $derived(priceHistory.findLast((p) => p.highPrice != null)?.highPrice ?? 0);
+	let latestLow = $derived(priceHistory.findLast((p) => p.lowPrice != null)?.lowPrice ?? 0);
+
+	let tradeDialogPrefill = $derived({
+		itemId: item.itemId,
+		itemName: item.name,
+		itemIcon: item.icon,
+		suggestedPrice: tradeDialogType === 'buy' ? latestLow : latestHigh,
+		suggestedType: tradeDialogType
+	});
+
+	function openTrade(type: 'buy' | 'sell') {
+		tradeDialogType = type;
+		tradeDialogOpen = true;
+	}
 
 	const ranges: { value: PriceHistoryRange; label: string }[] = [
 		{ value: '1h', label: '1H' },
@@ -174,6 +195,10 @@
 			{#if item.members}
 				<Badge variant="outline">P2P</Badge>
 			{/if}
+			<div class="ml-auto flex gap-2">
+				<Button size="sm" variant="outline" onclick={() => openTrade('buy')}>Buy</Button>
+				<Button size="sm" variant="outline" onclick={() => openTrade('sell')}>Sell</Button>
+			</div>
 		</div>
 		{#if item.examine}
 			<p class="text-muted-foreground mt-1">{item.examine}</p>
@@ -437,3 +462,9 @@
 		</div>
 	</details>
 </div>
+
+<TradeDialog
+	bind:open={tradeDialogOpen}
+	items={[]}
+	prefill={tradeDialogPrefill}
+/>
