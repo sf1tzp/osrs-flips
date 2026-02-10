@@ -7,6 +7,7 @@
 	import { tradeStore } from '$lib/portfolio/trade-store.svelte';
 	import { calcGeTax } from '$lib/portfolio/types';
 	import type { Trade } from '$lib/portfolio/types';
+	import { parseNumeric } from '$lib/utils';
 	import type { DashboardItem } from '$lib/server/db/queries';
 
 	interface Prefill {
@@ -48,8 +49,8 @@
 		}
 	});
 
-	let price = $derived(Number(pricePerUnit) || 0);
-	let qty = $derived(Number(quantity) || 0);
+	let price = $derived(parseNumeric(pricePerUnit));
+	let qty = $derived(parseNumeric(quantity));
 	let tax = $derived(
 		tradeType === 'sell' && selectedItem && price > 0
 			? calcGeTax(price, selectedItem.id)
@@ -64,7 +65,7 @@
 		if (!valid || !selectedItem) return;
 
 		const trade: Trade = {
-			id: crypto.randomUUID(),
+			id: Math.random().toString(36).slice(2) + Date.now().toString(36),
 			itemId: selectedItem.id,
 			itemName: selectedItem.name,
 			itemIcon: selectedItem.icon,
@@ -163,13 +164,13 @@
 			<!-- Quantity -->
 			<div class="grid gap-2">
 				<Label>Quantity</Label>
-				<Input type="number" placeholder="0" min="1" bind:value={quantity} />
+				<Input type="text" inputmode="decimal" placeholder="e.g. 10k" bind:value={quantity} />
 			</div>
 
 			<!-- Price -->
 			<div class="grid gap-2">
 				<Label>Price per unit (gp)</Label>
-				<Input type="number" placeholder="0" min="1" bind:value={pricePerUnit} />
+				<Input type="text" inputmode="decimal" placeholder="e.g. 3.5m" bind:value={pricePerUnit} />
 				{#if tradeType === 'sell' && tax > 0}
 					<p class="text-xs text-muted-foreground">
 						Tax: {tax.toLocaleString()} gp &middot; Net: {netPerUnit.toLocaleString()} gp

@@ -11,6 +11,7 @@
 	import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
 	import ItemRowDetail from '$lib/components/item-row-detail.svelte';
 	import TradeDialog from '$lib/components/trade-dialog.svelte';
+	import { parseNumeric } from '$lib/utils';
 	import type { DashboardItem } from '$lib/server/db/queries';
 
 	let { data } = $props();
@@ -42,7 +43,11 @@
 	let sortDir = $state<'asc' | 'desc'>('desc');
 	let showTax = $state(true);
 	let minMarginInput = $state('');
-	let minMargin = $derived(Number(minMarginInput) || 0);
+	let minMargin = $derived(parseNumeric(minMarginInput));
+	let minPriceInput = $state('');
+	let minPrice = $derived(parseNumeric(minPriceInput));
+	let minVolumeInput = $state('');
+	let minVolume = $derived(parseNumeric(minVolumeInput));
 	let expandedId = $state<number | null>(null);
 
 	function toggleExpand(itemId: number) {
@@ -86,6 +91,12 @@
 				const m = getMargin(i);
 				return m != null && m >= minMargin;
 			});
+		}
+		if (minPrice > 0) {
+			items = items.filter((i) => i.lowPrice != null && i.lowPrice >= minPrice);
+		}
+		if (minVolume > 0) {
+			items = items.filter((i) => i.volume24h != null && i.volume24h >= minVolume);
 		}
 		return items.toSorted((a, b) => {
 			let av: string | number | boolean | null;
@@ -141,16 +152,30 @@
 <div class="mx-auto max-w-7xl p-4 sm:p-6">
 	<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<h1 class="text-2xl font-bold">Item Prices</h1>
-		<div class="flex items-center gap-4">
+		<div class="flex flex-wrap items-center gap-3">
 			<label class="flex items-center gap-2 text-sm">
 				<Switch bind:checked={showTax} />
 				<span class="text-muted-foreground">GE Tax</span>
 			</label>
 			<div class="w-28">
 				<Input
-					type="number"
+					type="text"
 					placeholder="Min margin"
 					bind:value={minMarginInput}
+				/>
+			</div>
+			<div class="w-28">
+				<Input
+					type="text"
+					placeholder="Min price"
+					bind:value={minPriceInput}
+				/>
+			</div>
+			<div class="w-28">
+				<Input
+					type="text"
+					placeholder="Min volume"
+					bind:value={minVolumeInput}
 				/>
 			</div>
 			<div class="relative w-full sm:w-72">
