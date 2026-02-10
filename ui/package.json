@@ -50,6 +50,7 @@
 	},
 	"dependencies": {
 		"@sveltejs/adapter-node": "^5.5.2",
+		"mode-watcher": "^1.1.0",
 		"postgres": "^3.4.8",
 		"virtua": "^0.48.5"
 	}
