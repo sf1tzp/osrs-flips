@@ -271,7 +271,12 @@
               {#if plan.itemIcon}
                 <img src={plan.itemIcon} alt="" class="size-5 object-contain" />
               {/if}
+              <a
+                      href="/items/{plan.itemId}?from=portfolio"
+                      class="inline-flex items-center gap-2 hover:underline"
+              >
               <span class="text-sm font-medium">{plan.itemName}</span>
+              </a>
 
               <!-- Buy info -->
               <span class="text-muted-foreground text-sm">Buy</span>

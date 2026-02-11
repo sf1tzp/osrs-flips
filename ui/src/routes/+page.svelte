@@ -200,7 +200,7 @@
         Flip Opportunities
       </h2>
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {#each data.signals.slice(0, 5) as signal}
+        {#each data.signals.slice(0, 6) as signal}
           {@const mPct = marginPctFromSignal(signal)}
           <div
             class="flex flex-col gap-2 rounded-lg border p-4 transition-colors hover:bg-muted/50"
