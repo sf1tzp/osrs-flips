@@ -6,6 +6,7 @@ import { error } from '@sveltejs/kit';
 import {
   getPriceHistory,
   getItemDataCoverage,
+  getSignalsForItem,
   PRICE_HISTORY_RANGES,
   SOURCE_OPTIONS,
   DEFAULT_SOURCES,
@@ -31,10 +32,12 @@ export const load: PageServerLoad = async ({ params, url }) => {
       ? (sourceParam as PriceHistorySource)
       : DEFAULT_SOURCES[range];
 
-  const [[item], priceHistory, coverage] = await Promise.all([
+  const [[item], priceHistory, coverage, signals, smaHistory] = await Promise.all([
     db.select().from(items).where(eq(items.itemId, itemId)).limit(1),
     getPriceHistory(itemId, range, source),
-    getItemDataCoverage(itemId)
+    getItemDataCoverage(itemId),
+    getSignalsForItem(itemId),
+    getPriceHistory(itemId, '24h', '1h')
   ]);
 
   if (!item) error(404, 'Item not found');
@@ -43,6 +46,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
     item: { ...item, icon: item.icon ? wikiIconUrl(item.icon) : null },
     priceHistory,
     coverage,
+    signals,
+    smaHistory,
     range,
     source
   };

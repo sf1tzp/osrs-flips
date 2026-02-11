@@ -15,7 +15,7 @@
     type PriceHistoryRange,
     type PriceHistorySource
   } from '$lib/price-history';
-  import type { BucketCoverage } from '$lib/server/db/queries';
+  import type { ActiveSignal, BucketCoverage } from '$lib/server/db/queries';
   import TradeDialog from '$lib/components/trade-dialog.svelte';
 
   const priceTimeScale = scaleTime();
@@ -42,6 +42,34 @@
   let coverage = $derived(data.coverage as BucketCoverage[]);
   let range = $derived(data.range as PriceHistoryRange);
   let source = $derived(data.source as PriceHistorySource);
+
+  let signals = $derived(data.signals as ActiveSignal[]);
+
+  let sma24h = $derived.by(() => {
+    const prices = (data.smaHistory as { lowPrice: number | null }[])
+      .map((p) => p.lowPrice)
+      .filter((v): v is number => v != null);
+    if (prices.length === 0) return null;
+    return Math.round(prices.reduce((sum, p) => sum + p, 0) / prices.length);
+  });
+
+  function signalLabel(type: string): string {
+    return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  function faqAnchor(type: string): string {
+    const map: Record<string, string> = {
+      spread_widening: 'spread-widening',
+      price_inversion: 'price-inversion',
+      macd_crossover: 'macd',
+      rsi_oversold: 'rsi'
+    };
+    return `/faq#${map[type] ?? type}`;
+  }
+
+  function isMomentumSignal(type: string): boolean {
+    return type === 'macd_crossover' || type === 'rsi_oversold';
+  }
 
   let tradeDialogOpen = $state(false);
 
@@ -201,6 +229,46 @@
       <p class="text-muted-foreground mt-1">{item.examine}</p>
     {/if}
   </div>
+
+  <!-- Signal Strip -->
+  {#if signals.length > 0}
+    <div class="mb-4 flex flex-wrap gap-2">
+      {#each signals as signal}
+        <div class="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm">
+          <a href={faqAnchor(signal.signalType)}>
+            <Badge variant="secondary" class="text-[10px] hover:bg-secondary/80">
+              {signalLabel(signal.signalType)}
+            </Badge>
+          </a>
+          <span class="font-mono tabular-nums text-muted-foreground">
+            {signal.score.toFixed(2)}
+          </span>
+          {#if isMomentumSignal(signal.signalType)}
+            {#if sma24h != null}
+              {@const currentPrice = latestLow || signal.lowPrice}
+              {#if currentPrice != null}
+                {@const potential = sma24h - currentPrice}
+                <span class="font-mono tabular-nums">
+                  {currentPrice.toLocaleString()}
+                  <span class="text-muted-foreground mx-0.5">&rarr;</span>
+                  {sma24h.toLocaleString()} gp
+                  <span class={potential >= 0 ? 'text-green-500' : 'text-red-500'}>
+                    ({potential >= 0 ? '+' : ''}{potential.toLocaleString()} gp)
+                  </span>
+                </span>
+              {/if}
+            {/if}
+          {:else if signal.margin != null}
+            <span class="font-mono tabular-nums">
+              Margin: <span class={signal.margin >= 0 ? 'text-green-500' : 'text-red-500'}>
+                {signal.margin.toLocaleString()} gp
+              </span>
+            </span>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {/if}
 
   <!-- Range & Source Selector -->
   <div class="mb-4 flex items-center gap-1">
