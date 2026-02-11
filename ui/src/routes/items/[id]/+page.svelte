@@ -102,6 +102,9 @@
 		chartData.filter((d) => d.highPrice != null || d.lowPrice != null)
 	);
 
+	let highPriceData = $derived(priceData.filter((d) => d.highPrice != null));
+	let lowPriceData = $derived(priceData.filter((d) => d.lowPrice != null));
+
 	let priceYDomain = $derived.by(() => {
 		const prices = priceData.flatMap((d) =>
 			[d.highPrice, d.lowPrice].filter((v): v is number => v != null)
@@ -261,9 +264,23 @@
 						class="fill-[var(--color-margin)]"
 					/>
 					<Spline
+						data={highPriceData}
+						y={(d: ChartPoint) => d.highPrice}
+						class="stroke-[var(--color-highPrice)] stroke-[1]"
+						opacity={0.4}
+						stroke-dasharray="2,6"
+					/>
+					<Spline
 						y={(d: ChartPoint) => d.highPrice}
 						defined={(d: ChartPoint) => d.highPrice != null}
 						class="stroke-[var(--color-highPrice)] stroke-[1.5]"
+					/>
+					<Spline
+						data={lowPriceData}
+						y={(d: ChartPoint) => d.lowPrice}
+						class="stroke-[var(--color-lowPrice)] stroke-[1]"
+						opacity={0.4}
+						stroke-dasharray="2,6"
 					/>
 					<Spline
 						y={(d: ChartPoint) => d.lowPrice}
