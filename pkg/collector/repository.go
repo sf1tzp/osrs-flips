@@ -338,19 +338,151 @@ func (r *Repository) GetItemsToPollVolume(ctx context.Context) ([]int, error) {
 }
 
 // SetPollVolume sets the poll_volume flag for specified item IDs.
+// Also marks the source as 'manual' so auto-disable never clobbers user intent.
 func (r *Repository) SetPollVolume(ctx context.Context, itemIDs []int, pollVolume bool) (int64, error) {
 	if len(itemIDs) == 0 {
 		return 0, nil
 	}
 
-	ct, err := r.pool.Exec(ctx, `
-		UPDATE items SET poll_volume = $1, updated_at = NOW()
-		WHERE item_id = ANY($2)
-	`, pollVolume, itemIDs)
+	query := `UPDATE items SET poll_volume = $1, updated_at = NOW() WHERE item_id = ANY($2)`
+	if pollVolume {
+		query = `UPDATE items SET poll_volume = TRUE, poll_volume_source = 'manual', updated_at = NOW() WHERE item_id = ANY($1)`
+		ct, err := r.pool.Exec(ctx, query, itemIDs)
+		if err != nil {
+			return 0, fmt.Errorf("update poll volume: %w", err)
+		}
+		return ct.RowsAffected(), nil
+	}
+
+	ct, err := r.pool.Exec(ctx, query, pollVolume, itemIDs)
 	if err != nil {
 		return 0, fmt.Errorf("update poll volume: %w", err)
 	}
 	return ct.RowsAffected(), nil
+}
+
+// VolumeRatio holds recent vs baseline volume data for an item.
+type VolumeRatio struct {
+	Recent5m  float64
+	Avg24h    float64
+	Ratio     float64
+}
+
+// GetCompoundedItemIDs returns item IDs that have 2+ active (non-expired) signals.
+func (r *Repository) GetCompoundedItemIDs(ctx context.Context) ([]int, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT item_id
+		FROM signals
+		WHERE expires_at > NOW()
+		GROUP BY item_id
+		HAVING COUNT(*) >= 2
+		ORDER BY item_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query compounded item ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan compounded item id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// SetPollVolumeAuto enables poll_volume for items, setting source='auto'.
+// Skips items already set to source='manual' to protect user overrides.
+// Returns the number of rows updated.
+func (r *Repository) SetPollVolumeAuto(ctx context.Context, itemIDs []int) (int64, error) {
+	if len(itemIDs) == 0 {
+		return 0, nil
+	}
+
+	ct, err := r.pool.Exec(ctx, `
+		UPDATE items
+		SET poll_volume = TRUE,
+		    poll_volume_source = 'auto',
+		    poll_volume_auto_at = NOW(),
+		    updated_at = NOW()
+		WHERE item_id = ANY($1)
+		  AND poll_volume_source != 'manual'
+	`, itemIDs)
+	if err != nil {
+		return 0, fmt.Errorf("set poll volume auto: %w", err)
+	}
+	return ct.RowsAffected(), nil
+}
+
+// DisableAutoPolledVolume disables poll_volume for auto-enabled items that are
+// no longer in keepItemIDs, respecting a grace period before disabling.
+func (r *Repository) DisableAutoPolledVolume(ctx context.Context, keepItemIDs []int, gracePeriod time.Duration) (int64, error) {
+	ct, err := r.pool.Exec(ctx, `
+		UPDATE items
+		SET poll_volume = FALSE,
+		    poll_volume_source = 'manual',
+		    poll_volume_auto_at = NULL,
+		    updated_at = NOW()
+		WHERE poll_volume = TRUE
+		  AND poll_volume_source = 'auto'
+		  AND (CARDINALITY($1::int[]) = 0 OR item_id != ALL($1::int[]))
+		  AND poll_volume_auto_at < NOW() - $2::interval
+	`, keepItemIDs, gracePeriod)
+	if err != nil {
+		return 0, fmt.Errorf("disable auto polled volume: %w", err)
+	}
+	return ct.RowsAffected(), nil
+}
+
+// GetVolumeRatios returns recent_5m_volume / avg_24h_volume for given items.
+// Uses high_price_volume from price_buckets_5m.
+func (r *Repository) GetVolumeRatios(ctx context.Context, itemIDs []int) (map[int]VolumeRatio, error) {
+	if len(itemIDs) == 0 {
+		return nil, nil
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		WITH recent AS (
+			SELECT DISTINCT ON (item_id)
+				item_id,
+				COALESCE(high_price_volume, 0) AS vol
+			FROM price_buckets_5m
+			WHERE item_id = ANY($1)
+			  AND high_price_volume IS NOT NULL
+			ORDER BY item_id, bucket_start DESC
+		),
+		baseline AS (
+			SELECT item_id,
+			       AVG(high_price_volume) AS avg_vol
+			FROM price_buckets_5m
+			WHERE item_id = ANY($1)
+			  AND bucket_start >= NOW() - INTERVAL '24 hours'
+			  AND high_price_volume IS NOT NULL
+			GROUP BY item_id
+			HAVING AVG(high_price_volume) > 0
+		)
+		SELECT r.item_id, r.vol, b.avg_vol, r.vol::float / b.avg_vol AS ratio
+		FROM recent r
+		JOIN baseline b ON r.item_id = b.item_id
+	`, itemIDs)
+	if err != nil {
+		return nil, fmt.Errorf("query volume ratios: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[int]VolumeRatio)
+	for rows.Next() {
+		var itemID int
+		var vr VolumeRatio
+		if err := rows.Scan(&itemID, &vr.Recent5m, &vr.Avg24h, &vr.Ratio); err != nil {
+			return nil, fmt.Errorf("scan volume ratio: %w", err)
+		}
+		result[itemID] = vr
+	}
+	return result, rows.Err()
 }
 
 // GetItemCount returns the total number of items in the items table.

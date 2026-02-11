@@ -9,6 +9,26 @@ import (
 	"osrs-flipping/pkg/logging"
 )
 
+// volumeConfidence maps an RVOL (Relative Volume) ratio to a 0–1 confidence score.
+//   - 0 or no data → 0 (unknown)
+//   - 0.5 → ~0.25 (weak)
+//   - 1.0 → 0.5 (baseline)
+//   - 2.0 → 0.75 (strong)
+//   - 3.0+ → 1.0 (very strong)
+func volumeConfidence(ratio float64) float64 {
+	if ratio <= 0 {
+		return 0
+	}
+	if ratio >= 3.0 {
+		return 1.0
+	}
+	// Piecewise linear: 0→0, 1→0.5, 3→1.0
+	if ratio <= 1.0 {
+		return ratio * 0.5
+	}
+	return 0.5 + (ratio-1.0)*0.25
+}
+
 // SignalComputerConfig configures the signal computation service.
 type SignalComputerConfig struct {
 	Interval time.Duration // How often to compute signals (default: 5m)
@@ -168,6 +188,53 @@ func (sc *SignalComputer) compute() {
 	}
 	signals = append(signals, rsiSignals...)
 
+	// 5a. Manage volume polling for compounded items (non-fatal)
+	compoundedIDs, err := sc.repo.GetCompoundedItemIDs(ctx)
+	if err != nil {
+		sc.logger.WithComponent("signal_computer").WithError(err).Warn("failed to get compounded item IDs for volume polling")
+	} else if len(compoundedIDs) > 0 {
+		enabled, err := sc.repo.SetPollVolumeAuto(ctx, compoundedIDs)
+		if err != nil {
+			sc.logger.WithComponent("signal_computer").WithError(err).Warn("failed to auto-enable volume polling")
+		} else if enabled > 0 {
+			sc.logger.WithComponent("signal_computer").WithField("enabled", enabled).Info("auto-enabled volume polling for compounded items")
+		}
+	}
+	// Disable auto-polled items that are no longer compounded (with grace period)
+	if err == nil {
+		disabled, err := sc.repo.DisableAutoPolledVolume(ctx, compoundedIDs, 30*time.Minute)
+		if err != nil {
+			sc.logger.WithComponent("signal_computer").WithError(err).Warn("failed to disable stale auto volume polling")
+		} else if disabled > 0 {
+			sc.logger.WithComponent("signal_computer").WithField("disabled", disabled).Info("disabled stale auto volume polling")
+		}
+	}
+
+	// 5b. Annotate volume metadata on compounded items' signals
+	if len(compoundedIDs) > 0 {
+		volumeRatios, err := sc.repo.GetVolumeRatios(ctx, compoundedIDs)
+		if err != nil {
+			sc.logger.WithComponent("signal_computer").WithError(err).Warn("failed to get volume ratios")
+		} else if len(volumeRatios) > 0 {
+			// Build set of compounded items for quick lookup
+			compoundedSet := make(map[int]bool, len(compoundedIDs))
+			for _, id := range compoundedIDs {
+				compoundedSet[id] = true
+			}
+			for i := range signals {
+				if !compoundedSet[signals[i].ItemID] {
+					continue
+				}
+				vr, ok := volumeRatios[signals[i].ItemID]
+				if !ok {
+					continue
+				}
+				signals[i].Metadata["volume_ratio"] = math.Round(vr.Ratio*100) / 100
+				signals[i].Metadata["volume_confidence"] = math.Round(volumeConfidence(vr.Ratio)*1000) / 1000
+			}
+		}
+	}
+
 	// 6. Upsert computed signals
 	if len(signals) > 0 {
 		upserted, err := sc.repo.UpsertSignals(ctx, signals)
@@ -178,6 +245,7 @@ func (sc *SignalComputer) compute() {
 
 		sc.logger.WithComponent("signal_computer").WithFields(map[string]interface{}{
 			"signals_upserted": upserted,
+			"compounded_items": len(compoundedIDs),
 			"duration":         time.Since(start).String(),
 		}).Info("signal computation completed")
 	} else {

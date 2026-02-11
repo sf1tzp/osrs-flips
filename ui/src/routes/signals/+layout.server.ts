@@ -6,7 +6,8 @@ export interface CompoundedItem {
   itemName: string;
   itemIcon: string | null;
   signals: ActiveSignal[];
-  avgScore: number;
+  compositeScore: number;
+  volumeConfidence: number | null;
   highPrice: number | null;
   lowPrice: number | null;
   margin: number | null;
@@ -31,7 +32,12 @@ export const load: LayoutServerLoad = async () => {
   for (const [itemId, signals] of byItem) {
     if (signals.length < 2) continue;
     const first = signals[0];
-    const avgScore = signals.reduce((sum, s) => sum + s.score, 0) / signals.length;
+    const compositeScore = signals.reduce((sum, s) => sum + s.score, 0);
+    // Extract volume_confidence from signal metadata (max across signals for the item)
+    const volConfValues = signals
+      .map((s) => s.metadata?.volume_confidence)
+      .filter((v): v is number => typeof v === 'number');
+    const volumeConfidence = volConfValues.length > 0 ? Math.max(...volConfValues) : null;
     // Use prices from whichever signal has them (flip signals have distinct high/low)
     const withMargin = signals.find((s) => s.margin != null);
     compoundedItems.push({
@@ -39,7 +45,8 @@ export const load: LayoutServerLoad = async () => {
       itemName: first.itemName,
       itemIcon: first.itemIcon,
       signals: signals.sort((a, b) => b.score - a.score),
-      avgScore: Math.round(avgScore * 1000) / 1000,
+      compositeScore: Math.round(compositeScore * 1000) / 1000,
+      volumeConfidence,
       highPrice: first.highPrice,
       lowPrice: first.lowPrice,
       margin: withMargin?.margin ?? null,
@@ -47,7 +54,11 @@ export const load: LayoutServerLoad = async () => {
     });
   }
 
-  compoundedItems.sort((a, b) => b.signals.length - a.signals.length || b.avgScore - a.avgScore);
+  compoundedItems.sort(
+    (a, b) =>
+      b.compositeScore - a.compositeScore ||
+      (b.volumeConfidence ?? -1) - (a.volumeConfidence ?? -1)
+  );
 
   return {
     flipSignals: all

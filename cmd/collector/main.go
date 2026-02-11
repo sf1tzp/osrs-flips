@@ -186,7 +186,7 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 		backgroundSync = collector.NewBackgroundSync(osrsClient, repo, syncConfig, logger, nil)
 	}
 	var volumePoller *collector.VolumePoller
-	if *enableVolumePolling {
+	if *enableVolumePolling || *enableSignals {
 		volumePoller = collector.NewVolumePoller(osrsClient, repo, volumePollerConfig, logger, nil)
 	}
 	var signalComputer *collector.SignalComputer

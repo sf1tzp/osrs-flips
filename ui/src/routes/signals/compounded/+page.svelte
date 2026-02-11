@@ -51,9 +51,9 @@
     return `/faq#${map[type] ?? type}`;
   }
 
-  type SortKey = 'itemName' | 'signalCount' | 'avgScore' | 'margin';
+  type SortKey = 'itemName' | 'signalCount' | 'compositeScore' | 'volumeConfidence' | 'margin';
 
-  let sortKey = $state<SortKey>('signalCount');
+  let sortKey = $state<SortKey>('compositeScore');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
   function toggleSort(key: SortKey) {
@@ -71,8 +71,10 @@
         return item.itemName;
       case 'signalCount':
         return item.signals.length;
-      case 'avgScore':
-        return item.avgScore;
+      case 'compositeScore':
+        return item.compositeScore;
+      case 'volumeConfidence':
+        return item.volumeConfidence;
       case 'margin':
         return item.margin;
     }
@@ -93,9 +95,34 @@
   const columns: { key: SortKey; label: string }[] = [
     { key: 'itemName', label: 'Item' },
     { key: 'signalCount', label: 'Signals' },
-    { key: 'avgScore', label: 'Avg Score' },
+    { key: 'compositeScore', label: 'Score' },
+    { key: 'volumeConfidence', label: 'RVOL' },
     { key: 'margin', label: 'Margin' }
   ];
+
+  function volColor(vc: number | null): string {
+    if (vc == null) return 'text-muted-foreground/40';
+    if (vc < 0.5) return 'text-red-500';
+    if (vc <= 0.75) return 'text-muted-foreground';
+    return 'text-green-500';
+  }
+
+  function volLabel(vc: number | null): string {
+    if (vc == null) return '—';
+    return (vc * 100).toFixed(0) + '%';
+  }
+
+  function signalVolIndicator(signal: ActiveSignal): string {
+    const vc = signal.metadata?.volume_confidence;
+    if (typeof vc !== 'number') return '';
+    return vc > 0.5 ? ' ▲' : ' ▼';
+  }
+
+  function signalVolColor(signal: ActiveSignal): string {
+    const vc = signal.metadata?.volume_confidence;
+    if (typeof vc !== 'number') return '';
+    return vc > 0.5 ? 'text-green-500' : 'text-red-500';
+  }
 
   function formatGp(n: number | null): string {
     if (n == null) return '—';
@@ -178,12 +205,20 @@
                     <Badge variant="secondary" class="text-[10px] hover:bg-secondary/80">
                       {signalLabel(signal.signalType)}
                       <span class="ml-1 opacity-60">{signal.score.toFixed(2)}</span>
+                      {#if signalVolIndicator(signal)}
+                        <span class="ml-0.5 {signalVolColor(signal)}"
+                          >{signalVolIndicator(signal)}</span
+                        >
+                      {/if}
                     </Badge>
                   </a>
                 {/each}
               </div>
             </td>
-            <td class="px-4 py-3 tabular-nums">{item.avgScore.toFixed(2)}</td>
+            <td class="px-4 py-3 tabular-nums">{item.compositeScore.toFixed(2)}</td>
+            <td class="px-4 py-3 tabular-nums {volColor(item.volumeConfidence)}"
+              >{volLabel(item.volumeConfidence)}</td
+            >
             <td
               class="px-4 py-3 tabular-nums {item.margin != null && item.margin > 0
                 ? 'text-green-500'
