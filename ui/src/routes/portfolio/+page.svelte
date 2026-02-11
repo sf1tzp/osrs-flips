@@ -357,11 +357,6 @@
 
 							<!-- Spacer + actions -->
 							<div class="ml-auto flex items-center gap-2">
-								{#if plan.snapshotInstaBuy != null || plan.snapshotInstaSell != null}
-									<span class="text-[10px] text-muted-foreground hidden sm:inline" title="GE prices when this flip was created">
-										GE: {formatGp(plan.snapshotInstaBuy)} / {formatGp(plan.snapshotInstaSell)}
-									</span>
-								{/if}
 								<span class="text-xs text-muted-foreground">{timeAgo(plan.createdAt)}</span>
 								<button
 									type="button"

@@ -25,5 +25,3 @@ After completing the code, ask the user if they want a playground link. Only cal
 ## ShadCN Svelte Reference
 
 We use shadcn-svelte components under `src/lib/components/ui`. Documentation is available at https://shadcn-svelte.com/llms.txt
-
-
