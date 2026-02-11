@@ -263,6 +263,35 @@ func (sc *SignalComputer) computePriceInversion(ctx context.Context) ([]Signal, 
 	return signals, nil
 }
 
+// sma computes the simple moving average of the last n values in a price series.
+func sma(prices []int, n int) float64 {
+	start := len(prices) - n
+	if start < 0 {
+		start = 0
+	}
+	window := prices[start:]
+	var sum float64
+	for _, p := range window {
+		sum += float64(p)
+	}
+	return sum / float64(len(window))
+}
+
+// reversionMultiplier computes a score multiplier based on how far the current
+// price is below the 24h SMA. Returns 0.5–2.0:
+//   - 10%+ below SMA → 2.0x (strong reversion upside)
+//   - At SMA → 1.0x (neutral)
+//   - 5%+ above SMA → 0.5x (already past mean, dampened)
+func reversionMultiplier(currentPrice float64, sma24h float64) float64 {
+	if currentPrice <= 0 || sma24h <= 0 {
+		return 1.0
+	}
+	revPct := (sma24h - currentPrice) / currentPrice
+	scaled := revPct * 10
+	clamped := math.Max(-0.5, math.Min(1.0, scaled))
+	return 1 + clamped
+}
+
 // ema computes exponential moving average over a price series.
 // k = 2 / (period + 1)
 func ema(prices []int, period int) []float64 {
@@ -326,31 +355,38 @@ func (sc *SignalComputer) computeMACD(ctx context.Context) ([]Signal, error) {
 			continue
 		}
 
-		// Score = min(1.0, abs(macd - signal) / avg_price * 1000)
-		avgPrice := float64(prices[n])
-		if avgPrice <= 0 {
+		// Base score = min(1.0, abs(macd - signal) / avg_price * 1000)
+		currentPrice := float64(prices[n])
+		if currentPrice <= 0 {
 			continue
 		}
 		histogram := macdLine[n] - signalLine[n]
-		score := math.Min(1.0, math.Abs(histogram)/avgPrice*1000)
-		if score <= 0 {
+		baseScore := math.Min(1.0, math.Abs(histogram)/currentPrice*1000)
+		if baseScore <= 0 {
 			continue
 		}
+
+		// Apply mean-reversion multiplier: boost when price is below 24h SMA
+		sma24h := sma(prices, 24)
+		score := math.Min(1.0, baseScore*reversionMultiplier(currentPrice, sma24h))
+		revPct := (sma24h - currentPrice) / currentPrice
 
 		signals = append(signals, Signal{
 			ItemID:     item.ItemID,
 			SignalType: "macd_crossover",
 			Score:      math.Round(score*1000) / 1000,
 			Metadata: map[string]interface{}{
-				"macd":        math.Round(macdLine[n]*100) / 100,
-				"signal_line": math.Round(signalLine[n]*100) / 100,
-				"histogram":   math.Round(histogram*100) / 100,
-				"fast_ema":    math.Round(fast[n]*100) / 100,
-				"slow_ema":    math.Round(slow[n]*100) / 100,
-				"high_price":  prices[n],
-				"low_price":   prices[n],
-				"item_name":   item.ItemName,
-				"buy_limit":   item.BuyLimit,
+				"macd":          math.Round(macdLine[n]*100) / 100,
+				"signal_line":   math.Round(signalLine[n]*100) / 100,
+				"histogram":     math.Round(histogram*100) / 100,
+				"fast_ema":      math.Round(fast[n]*100) / 100,
+				"slow_ema":      math.Round(slow[n]*100) / 100,
+				"sma_24h":       int(math.Round(sma24h)),
+				"reversion_pct": math.Round(revPct*10000) / 10000,
+				"high_price":    prices[n],
+				"low_price":     prices[n],
+				"item_name":     item.ItemName,
+				"buy_limit":     item.BuyLimit,
 			},
 			ExpiresAt: expiresAt,
 		})
@@ -425,24 +461,35 @@ func (sc *SignalComputer) computeRSI(ctx context.Context) ([]Signal, error) {
 			continue
 		}
 
-		// Score = (30 - RSI) / 30
-		score := (30 - rsi) / 30
+		// Base score = (30 - RSI) / 30
+		baseScore := (30 - rsi) / 30
 
 		lastPrice := prices[n-1]
+
+		// Apply mean-reversion multiplier: boost when price is below 24h SMA
+		sma24h := sma(prices, 24)
+		currentPrice := float64(lastPrice)
+		score := math.Min(1.0, baseScore*reversionMultiplier(currentPrice, sma24h))
+		revPct := 0.0
+		if currentPrice > 0 {
+			revPct = (sma24h - currentPrice) / currentPrice
+		}
 
 		signals = append(signals, Signal{
 			ItemID:     item.ItemID,
 			SignalType: "rsi_oversold",
 			Score:      math.Round(score*1000) / 1000,
 			Metadata: map[string]interface{}{
-				"rsi":        math.Round(rsi*100) / 100,
-				"periods":    period,
-				"avg_gain":   math.Round(avgGain*100) / 100,
-				"avg_loss":   math.Round(avgLoss*100) / 100,
-				"high_price": lastPrice,
-				"low_price":  lastPrice,
-				"item_name":  item.ItemName,
-				"buy_limit":  item.BuyLimit,
+				"rsi":           math.Round(rsi*100) / 100,
+				"periods":       period,
+				"avg_gain":      math.Round(avgGain*100) / 100,
+				"avg_loss":      math.Round(avgLoss*100) / 100,
+				"sma_24h":       int(math.Round(sma24h)),
+				"reversion_pct": math.Round(revPct*10000) / 10000,
+				"high_price":    lastPrice,
+				"low_price":     lastPrice,
+				"item_name":     item.ItemName,
+				"buy_limit":     item.BuyLimit,
 			},
 			ExpiresAt: expiresAt,
 		})
