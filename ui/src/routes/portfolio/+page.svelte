@@ -216,7 +216,7 @@
                 <Table.Row>
                   <Table.Cell>
                     <a
-                      href="/items/{pos.itemId}"
+                      href="/items/{pos.itemId}?from=portfolio"
                       class="inline-flex items-center gap-2 hover:underline"
                     >
                       {#if pos.itemIcon}

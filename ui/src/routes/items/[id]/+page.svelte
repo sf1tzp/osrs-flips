@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { navigating } from '$app/state';
+  import { navigating, page } from '$app/state';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart';
@@ -17,6 +17,8 @@
   } from '$lib/price-history';
   import type { ActiveSignal, BucketCoverage } from '$lib/server/db/queries';
   import TradeDialog from '$lib/components/trade-dialog.svelte';
+  import { tradeStore } from '$lib/portfolio/trade-store.svelte';
+  import { calcGeTax } from '$lib/portfolio/types';
 
   const priceTimeScale = scaleTime();
   const priceYScale = scaleLinear();
@@ -42,6 +44,27 @@
   let coverage = $derived(data.coverage as BucketCoverage[]);
   let range = $derived(data.range as PriceHistoryRange);
   let source = $derived(data.source as PriceHistorySource);
+
+  const BACK_ROUTES: Record<string, { href: string; label: string }> = {
+    signals: { href: '/signals', label: 'Back to signals' },
+    momentum: { href: '/signals/momentum', label: 'Back to signals' },
+    portfolio: { href: '/portfolio', label: 'Back to portfolio' }
+  };
+
+  let backLink = $derived.by(() => {
+    const from = page.url.searchParams.get('from');
+    return (from && BACK_ROUTES[from]) || { href: '/', label: 'Back to dashboard' };
+  });
+
+  $effect(() => {
+    tradeStore.init();
+  });
+
+  let itemTrades = $derived(
+    tradeStore.trades.filter(
+      (t) => t.itemId === item.itemId && (t.status === 'active' || t.status === 'pending')
+    )
+  );
 
   let signals = $derived(data.signals as ActiveSignal[]);
 
@@ -105,6 +128,10 @@
     const params = new URLSearchParams({ range: r });
     if (effectiveSource !== DEFAULT_SOURCES[r]) {
       params.set('source', effectiveSource);
+    }
+    const from = page.url.searchParams.get('from');
+    if (from) {
+      params.set('from', from);
     }
     return `?${params}`;
   }
@@ -209,9 +236,9 @@
   class:opacity-50={isLoading}
 >
   <div class="mb-6">
-    <Button variant="ghost" href="/" class="mb-4 gap-1.5 px-2">
+    <Button variant="ghost" href={backLink.href} class="mb-4 gap-1.5 px-2">
       <ArrowLeft class="size-4" />
-      Back to dashboard
+      {backLink.label}
     </Button>
     <div class="flex items-center gap-3">
       {#if item.icon}
@@ -263,6 +290,45 @@
               Margin: <span class={signal.margin >= 0 ? 'text-green-500' : 'text-red-500'}>
                 {signal.margin.toLocaleString()} gp
               </span>
+            </span>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  <!-- Active Trades -->
+  {#if itemTrades.length > 0}
+    <div class="mb-4 flex flex-wrap gap-2">
+      {#each itemTrades as trade}
+        {@const isActive = trade.status === 'active'}
+        {@const totalCost = trade.quantity * trade.buyPrice}
+        <div
+          class="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm {isActive
+            ? 'border-primary/30 bg-primary/5'
+            : 'border-dashed'}"
+        >
+          <Badge variant={isActive ? 'default' : 'outline'} class="text-[10px]">
+            {isActive ? 'Active trade' : 'Pending buy'}
+          </Badge>
+          <span class="font-mono tabular-nums">
+            {isActive ? 'Bought' : 'Buying'}
+            {trade.quantity.toLocaleString()} @ {trade.buyPrice.toLocaleString()} gp
+          </span>
+          {#if trade.sellPrice != null}
+            <span class="font-mono tabular-nums text-muted-foreground">
+              target {trade.sellPrice.toLocaleString()} gp
+            </span>
+          {/if}
+          {#if isActive && latestHigh > 0}
+            {@const tax = calcGeTax(latestHigh, item.itemId)}
+            {@const pnl = (latestHigh - tax - trade.buyPrice) * trade.quantity}
+            <span
+              class="font-mono tabular-nums text-xs {pnl >= 0
+                ? 'text-green-500'
+                : 'text-red-500'}"
+            >
+              ({pnl >= 0 ? '+' : ''}{pnl.toLocaleString()} gp)
             </span>
           {/if}
         </div>

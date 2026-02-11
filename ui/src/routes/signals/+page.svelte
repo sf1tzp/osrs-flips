@@ -157,7 +157,7 @@
           <tr class="border-b transition-colors hover:bg-muted/50">
             <td class="px-4 py-3 font-medium">
               <a
-                href="/items/{signal.itemId}"
+                href="/items/{signal.itemId}?from=signals"
                 class="inline-flex items-center gap-2 hover:underline"
               >
                 {#if signal.itemIcon}
