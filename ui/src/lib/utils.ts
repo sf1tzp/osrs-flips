@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -13,17 +13,15 @@ export function parseNumeric(value: string): number {
   if (!match) return Number(trimmed) || 0;
   const num = parseFloat(match[1]);
   const suffix = match[2];
-  if (suffix === "k") return Math.round(num * 1_000);
-  if (suffix === "m") return Math.round(num * 1_000_000);
+  if (suffix === 'k') return Math.round(num * 1_000);
+  if (suffix === 'm') return Math.round(num * 1_000_000);
   return num;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type WithoutChild<T> = T extends { child?: any } ? Omit<T, "child"> : T;
+export type WithoutChild<T> = T extends { child?: any } ? Omit<T, 'child'> : T;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type WithoutChildren<T> = T extends { children?: any }
-  ? Omit<T, "children">
-  : T;
+export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, 'children'> : T;
 export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & {
   ref?: U | null;

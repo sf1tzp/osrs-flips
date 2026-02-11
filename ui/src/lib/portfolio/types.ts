@@ -14,7 +14,7 @@ export interface TradePlan {
   buyPrice: number;
 
   // Lifecycle: pending → active → closed
-  status: "pending" | "active" | "closed";
+  status: 'pending' | 'active' | 'closed';
   filledAt: number | null;
 
   // Sell side (set when closing out)

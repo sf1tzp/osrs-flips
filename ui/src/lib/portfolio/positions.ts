@@ -1,21 +1,13 @@
-import type {
-  TradePlan,
-  Position,
-  PortfolioSummary,
-  AggregationResult,
-} from "./types";
-import { calcGeTax } from "./types";
+import type { TradePlan, Position, PortfolioSummary, AggregationResult } from './types';
+import { calcGeTax } from './types';
 
 interface PriceMap {
   [itemId: number]: { highPrice: number | null; lowPrice: number | null };
 }
 
-export function aggregatePositions(
-  plans: TradePlan[],
-  prices: PriceMap,
-): AggregationResult {
+export function aggregatePositions(plans: TradePlan[], prices: PriceMap): AggregationResult {
   // Realized P&L from closed plans
-  const closedPlans = plans.filter((p) => p.status === "closed");
+  const closedPlans = plans.filter((p) => p.status === 'closed');
   let totalRealizedPnl = 0;
   for (const p of closedPlans) {
     const tax = calcGeTax(p.sellPrice!, p.itemId);
@@ -23,7 +15,7 @@ export function aggregatePositions(
   }
 
   // Active plans → positions
-  const activePlans = plans.filter((p) => p.status === "active");
+  const activePlans = plans.filter((p) => p.status === 'active');
   const grouped = new Map<number, TradePlan[]>();
   for (const p of activePlans) {
     let list = grouped.get(p.itemId);
@@ -38,16 +30,12 @@ export function aggregatePositions(
 
   for (const [itemId, itemPlans] of grouped) {
     const quantityHeld = itemPlans.reduce((sum, p) => sum + p.quantity, 0);
-    const totalCost = itemPlans.reduce(
-      (sum, p) => sum + p.quantity * p.buyPrice,
-      0,
-    );
+    const totalCost = itemPlans.reduce((sum, p) => sum + p.quantity * p.buyPrice, 0);
     const avgCostBasis = totalCost / quantityHeld;
 
     const priceInfo = prices[itemId];
     const currentPrice = priceInfo?.highPrice ?? null;
-    const currentValue =
-      currentPrice != null ? quantityHeld * currentPrice : null;
+    const currentValue = currentPrice != null ? quantityHeld * currentPrice : null;
 
     let unrealizedPnl: number | null = null;
     let unrealizedPnlPct: number | null = null;
@@ -55,10 +43,7 @@ export function aggregatePositions(
       const taxPerUnit = calcGeTax(currentPrice!, itemId);
       const netValue = currentValue - taxPerUnit * quantityHeld;
       unrealizedPnl = netValue - totalCost;
-      unrealizedPnlPct =
-        totalCost > 0
-          ? Math.round((unrealizedPnl / totalCost) * 1000) / 10
-          : null;
+      unrealizedPnlPct = totalCost > 0 ? Math.round((unrealizedPnl / totalCost) * 1000) / 10 : null;
     }
 
     // Weighted average target sell price from plans that have one set
@@ -67,7 +52,7 @@ export function aggregatePositions(
     if (withSell.length > 0) {
       const totalSellQty = withSell.reduce((s, p) => s + p.quantity, 0);
       targetSellPrice = Math.round(
-        withSell.reduce((s, p) => s + p.quantity * p.sellPrice!, 0) / totalSellQty,
+        withSell.reduce((s, p) => s + p.quantity * p.sellPrice!, 0) / totalSellQty
       );
     }
 
@@ -83,22 +68,17 @@ export function aggregatePositions(
       currentValue,
       targetSellPrice,
       unrealizedPnl,
-      unrealizedPnlPct,
+      unrealizedPnlPct
     });
   }
 
   return {
-    positions: positions.toSorted(
-      (a, b) => (b.currentValue ?? 0) - (a.currentValue ?? 0),
-    ),
-    realizedPnl: totalRealizedPnl,
+    positions: positions.toSorted((a, b) => (b.currentValue ?? 0) - (a.currentValue ?? 0)),
+    realizedPnl: totalRealizedPnl
   };
 }
 
-export function computeSummary(
-  positions: Position[],
-  realizedPnl: number,
-): PortfolioSummary {
+export function computeSummary(positions: Position[], realizedPnl: number): PortfolioSummary {
   let totalValue = 0;
   let totalCost = 0;
 
@@ -126,6 +106,6 @@ export function computeSummary(
     totalCost,
     unrealizedPnl,
     unrealizedPnlPct,
-    realizedPnl,
+    realizedPnl
   };
 }

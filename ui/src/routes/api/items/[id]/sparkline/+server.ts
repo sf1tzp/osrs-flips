@@ -1,14 +1,14 @@
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
-import { getPriceHistory } from "$lib/server/db/queries";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { getPriceHistory } from '$lib/server/db/queries';
 
 export const GET: RequestHandler = async ({ params }) => {
   const itemId = Number(params.id);
   if (!Number.isInteger(itemId) || itemId <= 0) {
-    return json({ error: "Invalid item ID" }, { status: 400 });
+    return json({ error: 'Invalid item ID' }, { status: 400 });
   }
 
-  const history = await getPriceHistory(itemId, "7d", "1h");
+  const history = await getPriceHistory(itemId, '7d', '1h');
 
   const prices = history
     .filter((p) => p.highPrice != null)
@@ -22,8 +22,5 @@ export const GET: RequestHandler = async ({ params }) => {
     avgDailyVolume = Math.round(totalVolume / 7);
   }
 
-  return json(
-    { prices, avgDailyVolume },
-    { headers: { "Cache-Control": "private, max-age=300" } },
-  );
+  return json({ prices, avgDailyVolume }, { headers: { 'Cache-Control': 'private, max-age=300' } });
 };
