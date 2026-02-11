@@ -5,6 +5,8 @@
 		}
 	],
 	"settings": {
-		"workbench.colorTheme": "Mintchoc Light (rainglow)"
+		"workbench.preferredDarkColorTheme": "Mintchoc (rainglow)",
+		"workbench.preferredLightColorTheme": "Mintchoc Light (rainglow)",
+		"window.autoDetectColorScheme": true,
 	}
 }

@@ -43,8 +43,8 @@ services:
       - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-60}
     command:
       - ./osrs-flips-collector
-      # - -sync-interval=5m0s
-      - -sync-timestamps-per-cycle=1000
+      - -sync-timestamps-per-cycle=300
+      - -enable-signals
       # - -sync-min-item-threshold=5000
 
     # Health check
