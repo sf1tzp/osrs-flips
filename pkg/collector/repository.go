@@ -48,6 +48,21 @@ type InversionCandidate struct {
 	BuyLimit       *int
 }
 
+// PricePoint is a single 1h bucket price for time-series indicator computation.
+type PricePoint struct {
+	Time  time.Time
+	Price int // avg_low_price (insta-sell / buy price)
+}
+
+// ItemPriceSeries holds the 1h price series for an item, used by MACD/RSI.
+type ItemPriceSeries struct {
+	ItemID   int
+	ItemName string
+	Icon     string
+	BuyLimit *int
+	Prices   []PricePoint
+}
+
 // PriceObservation represents a row in the price_observations table.
 type PriceObservation struct {
 	ItemID     int
@@ -696,6 +711,82 @@ func (r *Repository) RecordNoData(ctx context.Context, bucketSize string, bucket
 		return fmt.Errorf("record no data: %w", err)
 	}
 	return nil
+}
+
+// getPriceSeries returns items with at least minBuckets consecutive 1h buckets
+// of non-null avg_low_price data. Results are grouped by item with prices ordered ASC.
+func (r *Repository) getPriceSeries(ctx context.Context, minBuckets int) ([]ItemPriceSeries, error) {
+	rows, err := r.pool.Query(ctx, `
+		WITH eligible AS (
+			SELECT item_id
+			FROM price_buckets_1h
+			WHERE bucket_start >= NOW() - INTERVAL '48 hours'
+			  AND avg_low_price IS NOT NULL
+			GROUP BY item_id
+			HAVING COUNT(*) >= $1
+		)
+		SELECT b.item_id, i.name, i.icon, i.buy_limit,
+		       b.bucket_start, b.avg_low_price
+		FROM price_buckets_1h b
+		JOIN eligible e ON b.item_id = e.item_id
+		JOIN items i ON b.item_id = i.item_id
+		WHERE b.bucket_start >= NOW() - INTERVAL '48 hours'
+		  AND b.avg_low_price IS NOT NULL
+		ORDER BY b.item_id, b.bucket_start ASC
+	`, minBuckets)
+	if err != nil {
+		return nil, fmt.Errorf("query price series: %w", err)
+	}
+	defer rows.Close()
+
+	var result []ItemPriceSeries
+	var current *ItemPriceSeries
+
+	for rows.Next() {
+		var itemID int
+		var name string
+		var icon *string
+		var buyLimit *int
+		var bucketStart time.Time
+		var avgLowPrice int
+
+		if err := rows.Scan(&itemID, &name, &icon, &buyLimit, &bucketStart, &avgLowPrice); err != nil {
+			return nil, fmt.Errorf("scan price series row: %w", err)
+		}
+
+		if current == nil || current.ItemID != itemID {
+			if current != nil {
+				result = append(result, *current)
+			}
+			current = &ItemPriceSeries{
+				ItemID:   itemID,
+				ItemName: name,
+				BuyLimit: buyLimit,
+			}
+			if icon != nil {
+				current.Icon = *icon
+			}
+		}
+		current.Prices = append(current.Prices, PricePoint{
+			Time:  bucketStart,
+			Price: avgLowPrice,
+		})
+	}
+	if current != nil {
+		result = append(result, *current)
+	}
+
+	return result, rows.Err()
+}
+
+// GetMACDCandidates returns items with enough 1h price data for MACD computation.
+func (r *Repository) GetMACDCandidates(ctx context.Context) ([]ItemPriceSeries, error) {
+	return r.getPriceSeries(ctx, 35) // 26 slow EMA + 9 signal line
+}
+
+// GetRSICandidates returns items with enough 1h price data for RSI computation.
+func (r *Repository) GetRSICandidates(ctx context.Context) ([]ItemPriceSeries, error) {
+	return r.getPriceSeries(ctx, 15) // 14 periods + 1 for first gain/loss
 }
 
 // GetSpreadWideningCandidates returns items whose current spread exceeds 1.5x the

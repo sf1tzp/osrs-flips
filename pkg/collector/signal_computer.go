@@ -152,7 +152,23 @@ func (sc *SignalComputer) compute() {
 	}
 	signals = append(signals, inversionSignals...)
 
-	// 4. Upsert computed signals
+	// 4. Compute MACD crossover signals
+	macdSignals, err := sc.computeMACD(ctx)
+	if err != nil {
+		sc.logger.WithComponent("signal_computer").WithError(err).Error("failed to compute MACD signals")
+		return
+	}
+	signals = append(signals, macdSignals...)
+
+	// 5. Compute RSI oversold signals
+	rsiSignals, err := sc.computeRSI(ctx)
+	if err != nil {
+		sc.logger.WithComponent("signal_computer").WithError(err).Error("failed to compute RSI signals")
+		return
+	}
+	signals = append(signals, rsiSignals...)
+
+	// 6. Upsert computed signals
 	if len(signals) > 0 {
 		upserted, err := sc.repo.UpsertSignals(ctx, signals)
 		if err != nil {
@@ -239,6 +255,194 @@ func (sc *SignalComputer) computePriceInversion(ctx context.Context) ([]Signal, 
 				"volume_ratio":    math.Round(c.VolumeRatio*100) / 100,
 				"item_name":       c.ItemName,
 				"buy_limit":       c.BuyLimit,
+			},
+			ExpiresAt: expiresAt,
+		})
+	}
+
+	return signals, nil
+}
+
+// ema computes exponential moving average over a price series.
+// k = 2 / (period + 1)
+func ema(prices []int, period int) []float64 {
+	k := 2.0 / float64(period+1)
+	result := make([]float64, len(prices))
+	result[0] = float64(prices[0])
+	for i := 1; i < len(prices); i++ {
+		result[i] = float64(prices[i])*k + result[i-1]*(1-k)
+	}
+	return result
+}
+
+// emaFloat computes EMA over float64 values (used for signal line over MACD values).
+func emaFloat(values []float64, period int) []float64 {
+	k := 2.0 / float64(period+1)
+	result := make([]float64, len(values))
+	result[0] = values[0]
+	for i := 1; i < len(values); i++ {
+		result[i] = values[i]*k + result[i-1]*(1-k)
+	}
+	return result
+}
+
+func (sc *SignalComputer) computeMACD(ctx context.Context) ([]Signal, error) {
+	series, err := sc.repo.GetMACDCandidates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	expiresAt := time.Now().Add(sc.config.TTL)
+	var signals []Signal
+
+	for _, item := range series {
+		prices := make([]int, len(item.Prices))
+		for i, p := range item.Prices {
+			prices[i] = p.Price
+		}
+
+		// Need at least 26 prices for slow EMA + some data for signal line
+		if len(prices) < 35 {
+			continue
+		}
+
+		fast := ema(prices, 12)
+		slow := ema(prices, 26)
+
+		// MACD line = fast EMA - slow EMA
+		macdLine := make([]float64, len(prices))
+		for i := range prices {
+			macdLine[i] = fast[i] - slow[i]
+		}
+
+		// Signal line = 9-period EMA of MACD line
+		signalLine := emaFloat(macdLine, 9)
+
+		n := len(prices) - 1
+		prev := n - 1
+
+		// Bullish crossover: previous MACD < signal, current MACD >= signal
+		if macdLine[prev] >= signalLine[prev] || macdLine[n] < signalLine[n] {
+			continue
+		}
+
+		// Score = min(1.0, abs(macd - signal) / avg_price * 1000)
+		avgPrice := float64(prices[n])
+		if avgPrice <= 0 {
+			continue
+		}
+		histogram := macdLine[n] - signalLine[n]
+		score := math.Min(1.0, math.Abs(histogram)/avgPrice*1000)
+		if score <= 0 {
+			continue
+		}
+
+		signals = append(signals, Signal{
+			ItemID:     item.ItemID,
+			SignalType: "macd_crossover",
+			Score:      math.Round(score*1000) / 1000,
+			Metadata: map[string]interface{}{
+				"macd":        math.Round(macdLine[n]*100) / 100,
+				"signal_line": math.Round(signalLine[n]*100) / 100,
+				"histogram":   math.Round(histogram*100) / 100,
+				"fast_ema":    math.Round(fast[n]*100) / 100,
+				"slow_ema":    math.Round(slow[n]*100) / 100,
+				"high_price":  prices[n],
+				"low_price":   prices[n],
+				"item_name":   item.ItemName,
+				"buy_limit":   item.BuyLimit,
+			},
+			ExpiresAt: expiresAt,
+		})
+	}
+
+	return signals, nil
+}
+
+func (sc *SignalComputer) computeRSI(ctx context.Context) ([]Signal, error) {
+	series, err := sc.repo.GetRSICandidates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	expiresAt := time.Now().Add(sc.config.TTL)
+	var signals []Signal
+
+	for _, item := range series {
+		prices := make([]int, len(item.Prices))
+		for i, p := range item.Prices {
+			prices[i] = p.Price
+		}
+
+		if len(prices) < 15 {
+			continue
+		}
+
+		// Compute gains and losses
+		n := len(prices)
+		gains := make([]float64, n-1)
+		losses := make([]float64, n-1)
+		for i := 1; i < n; i++ {
+			diff := float64(prices[i] - prices[i-1])
+			if diff > 0 {
+				gains[i-1] = diff
+			} else {
+				losses[i-1] = -diff
+			}
+		}
+
+		// First average: simple average of first 14 periods
+		period := 14
+		if len(gains) < period {
+			continue
+		}
+
+		var avgGain, avgLoss float64
+		for i := 0; i < period; i++ {
+			avgGain += gains[i]
+			avgLoss += losses[i]
+		}
+		avgGain /= float64(period)
+		avgLoss /= float64(period)
+
+		// Wilder's smoothing for remaining periods
+		for i := period; i < len(gains); i++ {
+			avgGain = (avgGain*float64(period-1) + gains[i]) / float64(period)
+			avgLoss = (avgLoss*float64(period-1) + losses[i]) / float64(period)
+		}
+
+		// RSI = 100 - (100 / (1 + RS))
+		var rsi float64
+		if avgLoss == 0 {
+			rsi = 100
+		} else {
+			rs := avgGain / avgLoss
+			rsi = 100 - (100 / (1 + rs))
+		}
+
+		// Only emit signal when RSI < 30
+		if rsi >= 30 {
+			continue
+		}
+
+		// Score = (30 - RSI) / 30
+		score := (30 - rsi) / 30
+
+		lastPrice := prices[n-1]
+
+		signals = append(signals, Signal{
+			ItemID:     item.ItemID,
+			SignalType: "rsi_oversold",
+			Score:      math.Round(score*1000) / 1000,
+			Metadata: map[string]interface{}{
+				"rsi":        math.Round(rsi*100) / 100,
+				"periods":    period,
+				"avg_gain":   math.Round(avgGain*100) / 100,
+				"avg_loss":   math.Round(avgLoss*100) / 100,
+				"high_price": lastPrice,
+				"low_price":  lastPrice,
+				"item_name":  item.ItemName,
+				"buy_limit":  item.BuyLimit,
 			},
 			ExpiresAt: expiresAt,
 		})
