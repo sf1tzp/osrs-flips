@@ -33,6 +33,21 @@ type SpreadCandidate struct {
 	BuyLimit      *int
 }
 
+// InversionCandidate holds data for a price inversion evaluation.
+// A price inversion occurs when high_price < low_price, suggesting bot dumping or panic selling.
+type InversionCandidate struct {
+	ItemID         int
+	ItemName       string
+	Icon           string
+	HighPrice      int
+	LowPrice       int
+	Spread         int     // high - low (negative = inverted)
+	Volume         int64   // recent high_price_volume from 5m buckets
+	BaselineVolume float64 // 24h average high_price_volume
+	VolumeRatio    float64 // volume / baseline
+	BuyLimit       *int
+}
+
 // PriceObservation represents a row in the price_observations table.
 type PriceObservation struct {
 	ItemID     int
@@ -723,6 +738,71 @@ func (r *Repository) GetSpreadWideningCandidates(ctx context.Context) ([]SpreadC
 		if err := rows.Scan(&c.ItemID, &c.ItemName, &icon, &c.BuyLimit,
 			&c.HighPrice, &c.LowPrice, &c.CurrentSpread, &c.AvgSpread); err != nil {
 			return nil, fmt.Errorf("scan spread candidate: %w", err)
+		}
+		if icon != nil {
+			c.Icon = *icon
+		}
+		candidates = append(candidates, c)
+	}
+	return candidates, rows.Err()
+}
+
+// GetInversionCandidates returns items where high_price < low_price (inverted spread)
+// with a volume spike relative to their 24h baseline volume from 5m buckets.
+// Only considers items with poll_volume=true (VolumePoller active).
+func (r *Repository) GetInversionCandidates(ctx context.Context) ([]InversionCandidate, error) {
+	rows, err := r.pool.Query(ctx, `
+		WITH latest AS (
+			SELECT DISTINCT ON (item_id) item_id, high_price, low_price
+			FROM price_observations
+			WHERE high_price IS NOT NULL AND low_price IS NOT NULL
+			ORDER BY item_id, observed_at DESC
+		),
+		recent_volume AS (
+			-- Most recent 5m bucket volume per item (the current window)
+			SELECT DISTINCT ON (item_id)
+				item_id, high_price_volume
+			FROM price_buckets_5m
+			WHERE high_price_volume IS NOT NULL
+			ORDER BY item_id, bucket_start DESC
+		),
+		baseline_volume AS (
+			-- Average 5m high_price_volume over the last 24h per item
+			SELECT item_id,
+			       AVG(high_price_volume) AS avg_volume
+			FROM price_buckets_5m
+			WHERE bucket_start >= NOW() - INTERVAL '24 hours'
+			  AND high_price_volume IS NOT NULL
+			GROUP BY item_id
+			HAVING AVG(high_price_volume) > 0
+		)
+		SELECT l.item_id, i.name, i.icon, i.buy_limit,
+		       l.high_price, l.low_price,
+		       (l.high_price - l.low_price) AS spread,
+		       rv.high_price_volume AS volume,
+		       bv.avg_volume AS baseline_volume,
+		       rv.high_price_volume::float / bv.avg_volume AS volume_ratio
+		FROM latest l
+		JOIN items i ON l.item_id = i.item_id
+		JOIN recent_volume rv ON l.item_id = rv.item_id
+		JOIN baseline_volume bv ON l.item_id = bv.item_id
+		WHERE i.poll_volume = TRUE
+		  AND l.high_price < l.low_price
+		  AND rv.high_price_volume::float / bv.avg_volume >= 3.0
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query inversion candidates: %w", err)
+	}
+	defer rows.Close()
+
+	var candidates []InversionCandidate
+	for rows.Next() {
+		var c InversionCandidate
+		var icon *string
+		if err := rows.Scan(&c.ItemID, &c.ItemName, &icon, &c.BuyLimit,
+			&c.HighPrice, &c.LowPrice, &c.Spread,
+			&c.Volume, &c.BaselineVolume, &c.VolumeRatio); err != nil {
+			return nil, fmt.Errorf("scan inversion candidate: %w", err)
 		}
 		if icon != nil {
 			c.Icon = *icon

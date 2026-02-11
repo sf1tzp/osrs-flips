@@ -144,7 +144,15 @@ func (sc *SignalComputer) compute() {
 		return
 	}
 
-	// 3. Upsert computed signals
+	// 3. Compute price inversion signals
+	inversionSignals, err := sc.computePriceInversion(ctx)
+	if err != nil {
+		sc.logger.WithComponent("signal_computer").WithError(err).Error("failed to compute price inversion signals")
+		return
+	}
+	signals = append(signals, inversionSignals...)
+
+	// 4. Upsert computed signals
 	if len(signals) > 0 {
 		upserted, err := sc.repo.UpsertSignals(ctx, signals)
 		if err != nil {
@@ -194,6 +202,43 @@ func (sc *SignalComputer) computeSpreadWidening(ctx context.Context) ([]Signal, 
 				"low_price":      c.LowPrice,
 				"item_name":      c.ItemName,
 				"buy_limit":      c.BuyLimit,
+			},
+			ExpiresAt: expiresAt,
+		})
+	}
+
+	return signals, nil
+}
+
+func (sc *SignalComputer) computePriceInversion(ctx context.Context) ([]Signal, error) {
+	candidates, err := sc.repo.GetInversionCandidates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	expiresAt := time.Now().Add(sc.config.TTL)
+	signals := make([]Signal, 0, len(candidates))
+
+	for _, c := range candidates {
+		// Score based on volume spike magnitude: min(1.0, (ratio - 1) / 10)
+		score := math.Min(1.0, (c.VolumeRatio-1.0)/10.0)
+		if score <= 0 {
+			continue
+		}
+
+		signals = append(signals, Signal{
+			ItemID:     c.ItemID,
+			SignalType: "price_inversion",
+			Score:      score,
+			Metadata: map[string]interface{}{
+				"high_price":      c.HighPrice,
+				"low_price":       c.LowPrice,
+				"spread":          c.Spread,
+				"volume":          c.Volume,
+				"baseline_volume": math.Round(c.BaselineVolume*100) / 100,
+				"volume_ratio":    math.Round(c.VolumeRatio*100) / 100,
+				"item_name":       c.ItemName,
+				"buy_limit":       c.BuyLimit,
 			},
 			ExpiresAt: expiresAt,
 		})
