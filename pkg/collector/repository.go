@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,6 +11,27 @@ import (
 
 	"osrs-flipping/pkg/osrs"
 )
+
+// Signal represents a trading signal stored in the signals table.
+type Signal struct {
+	ItemID     int
+	SignalType string
+	Score      float64
+	Metadata   map[string]interface{}
+	ExpiresAt  time.Time
+}
+
+// SpreadCandidate holds data for a single item's spread widening evaluation.
+type SpreadCandidate struct {
+	ItemID        int
+	ItemName      string
+	Icon          string
+	HighPrice     int
+	LowPrice      int
+	CurrentSpread int
+	AvgSpread     float64
+	BuyLimit      *int
+}
 
 // PriceObservation represents a row in the price_observations table.
 type PriceObservation struct {
@@ -659,4 +681,99 @@ func (r *Repository) RecordNoData(ctx context.Context, bucketSize string, bucket
 		return fmt.Errorf("record no data: %w", err)
 	}
 	return nil
+}
+
+// GetSpreadWideningCandidates returns items whose current spread exceeds 1.5x the
+// 24-hour rolling average spread (computed from 1h buckets).
+func (r *Repository) GetSpreadWideningCandidates(ctx context.Context) ([]SpreadCandidate, error) {
+	rows, err := r.pool.Query(ctx, `
+		WITH latest AS (
+			SELECT DISTINCT ON (item_id) item_id, high_price, low_price
+			FROM price_observations
+			WHERE high_price IS NOT NULL AND low_price IS NOT NULL
+			ORDER BY item_id, observed_at DESC
+		),
+		avg_spread AS (
+			SELECT item_id,
+			       AVG(COALESCE(avg_high_price, 0) - COALESCE(avg_low_price, 0)) AS avg_spread
+			FROM price_buckets_1h
+			WHERE bucket_start >= NOW() - INTERVAL '24 hours'
+			  AND avg_high_price IS NOT NULL AND avg_low_price IS NOT NULL
+			GROUP BY item_id
+			HAVING AVG(COALESCE(avg_high_price, 0) - COALESCE(avg_low_price, 0)) > 0
+		)
+		SELECT l.item_id, i.name, i.icon, i.buy_limit,
+		       l.high_price, l.low_price,
+		       (l.high_price - l.low_price) AS current_spread,
+		       a.avg_spread
+		FROM latest l
+		JOIN avg_spread a ON l.item_id = a.item_id
+		JOIN items i ON l.item_id = i.item_id
+		WHERE (l.high_price - l.low_price) > a.avg_spread * 1.5
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query spread widening candidates: %w", err)
+	}
+	defer rows.Close()
+
+	var candidates []SpreadCandidate
+	for rows.Next() {
+		var c SpreadCandidate
+		var icon *string
+		if err := rows.Scan(&c.ItemID, &c.ItemName, &icon, &c.BuyLimit,
+			&c.HighPrice, &c.LowPrice, &c.CurrentSpread, &c.AvgSpread); err != nil {
+			return nil, fmt.Errorf("scan spread candidate: %w", err)
+		}
+		if icon != nil {
+			c.Icon = *icon
+		}
+		candidates = append(candidates, c)
+	}
+	return candidates, rows.Err()
+}
+
+// UpsertSignals batch upserts signals using ON CONFLICT on (item_id, signal_type).
+func (r *Repository) UpsertSignals(ctx context.Context, signals []Signal) (int64, error) {
+	if len(signals) == 0 {
+		return 0, nil
+	}
+
+	batch := &pgx.Batch{}
+	for _, s := range signals {
+		metaJSON, err := json.Marshal(s.Metadata)
+		if err != nil {
+			return 0, fmt.Errorf("marshal signal metadata: %w", err)
+		}
+		batch.Queue(`
+			INSERT INTO signals (item_id, signal_type, score, metadata, expires_at)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (item_id, signal_type) DO UPDATE SET
+				score = EXCLUDED.score,
+				metadata = EXCLUDED.metadata,
+				created_at = NOW(),
+				expires_at = EXCLUDED.expires_at
+		`, s.ItemID, s.SignalType, s.Score, metaJSON, s.ExpiresAt)
+	}
+
+	br := r.pool.SendBatch(ctx, batch)
+	defer br.Close()
+
+	var upserted int64
+	for range signals {
+		ct, err := br.Exec()
+		if err != nil {
+			return upserted, fmt.Errorf("batch exec signal upsert: %w", err)
+		}
+		upserted += ct.RowsAffected()
+	}
+	return upserted, nil
+}
+
+// DeleteExpiredSignals removes signals whose expiry has passed.
+func (r *Repository) DeleteExpiredSignals(ctx context.Context) (int64, error) {
+	ct, err := r.pool.Exec(ctx, `DELETE FROM signals WHERE expires_at < NOW()`)
+	if err != nil {
+		return 0, fmt.Errorf("delete expired signals: %w", err)
+	}
+	return ct.RowsAffected(), nil
 }

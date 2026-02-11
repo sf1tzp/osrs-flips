@@ -7,8 +7,8 @@
 osrs-flips
 osrs-flips-bot
 osrs-flips-collector
-collector
-main
+/collector
+/main
 
 # Test binary, built with `go test -c`
 *.test

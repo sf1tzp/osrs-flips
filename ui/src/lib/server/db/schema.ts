@@ -6,6 +6,8 @@ import {
   timestamp,
   bigint,
   primaryKey,
+  doublePrecision,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 // ── Item metadata ──────────────────────────────────────────────────────
@@ -86,3 +88,14 @@ export const priceBuckets24h = pgTable(
   },
   (t) => [primaryKey({ columns: [t.itemId, t.bucketStart] })],
 );
+
+// ── Trading signals (regular table, low volume) ─────────────────────
+export const signals = pgTable("signals", {
+  id: bigint("id", { mode: "number" }).primaryKey(),
+  itemId: integer("item_id").notNull(),
+  signalType: text("signal_type").notNull(),
+  score: doublePrecision("score").notNull(),
+  metadata: jsonb("metadata").default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});

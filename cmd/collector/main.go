@@ -24,6 +24,9 @@ var (
 	syncTimestampsPerCycle = flag.Int("sync-timestamps-per-cycle", 50, "Max timestamps to sync per bucket per cycle")
 	enableVolumePolling    = flag.Bool("enable-volume-polling", false, "Enable volume polling for items with poll_volume=true")
 	volumePollInterval     = flag.Duration("volume-poll-interval", 5*time.Minute, "Volume polling interval")
+	enableSignals          = flag.Bool("enable-signals", false, "Enable signal computation")
+	signalInterval         = flag.Duration("signal-interval", 5*time.Minute, "Signal computation interval")
+	signalTTL              = flag.Duration("signal-ttl", 10*time.Minute, "Signal expiry TTL")
 
 	// Status command flags
 	showStatus    = flag.Bool("status", false, "Show sync status and exit")
@@ -171,6 +174,11 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 	volumePollerConfig := collector.DefaultVolumePollerConfig()
 	volumePollerConfig.PollInterval = *volumePollInterval
 
+	// Configure signal computer
+	signalConfig := collector.DefaultSignalComputerConfig()
+	signalConfig.Interval = *signalInterval
+	signalConfig.TTL = *signalTTL
+
 	// Create components
 	poller := collector.NewPoller(osrsClient, repo, pollerConfig, logger)
 	var backgroundSync *collector.BackgroundSync
@@ -180,6 +188,10 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 	var volumePoller *collector.VolumePoller
 	if *enableVolumePolling {
 		volumePoller = collector.NewVolumePoller(osrsClient, repo, volumePollerConfig, logger, nil)
+	}
+	var signalComputer *collector.SignalComputer
+	if *enableSignals {
+		signalComputer = collector.NewSignalComputer(repo, signalConfig, logger)
 	}
 
 	// Start poller
@@ -207,6 +219,15 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 		}).Info("volume poller started")
 	}
 
+	// Start signal computer if enabled
+	if signalComputer != nil {
+		signalComputer.Start()
+		logger.WithComponent("collector").WithFields(map[string]interface{}{
+			"interval": signalConfig.Interval.String(),
+			"ttl":      signalConfig.TTL.String(),
+		}).Info("signal computer started")
+	}
+
 	logger.WithComponent("collector").Info("combined mode fully initialized")
 
 	// Wait for shutdown signal
@@ -226,6 +247,11 @@ func runCombinedMode(ctx context.Context, osrsClient *osrs.Client, repo *collect
 	if volumePoller != nil {
 		volumePoller.Stop()
 		logger.WithComponent("collector").Info("volume poller stopped")
+	}
+
+	if signalComputer != nil {
+		signalComputer.Stop()
+		logger.WithComponent("collector").Info("signal computer stopped")
 	}
 }
 

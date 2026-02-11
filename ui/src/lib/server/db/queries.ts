@@ -238,6 +238,62 @@ export async function getItemDataCoverage(
   );
 }
 
+export interface ActiveSignal {
+  itemId: number;
+  itemName: string;
+  itemIcon: string | null;
+  signalType: string;
+  score: number;
+  metadata: Record<string, unknown>;
+  highPrice: number | null;
+  lowPrice: number | null;
+  margin: number | null;
+  buyLimit: number | null;
+  createdAt: string;
+}
+
+export async function getActiveSignals(): Promise<ActiveSignal[]> {
+  const rows = await sql`
+    SELECT
+      s.item_id,
+      i.name,
+      i.icon,
+      s.signal_type,
+      s.score,
+      s.metadata,
+      (s.metadata->>'high_price')::int AS high_price,
+      (s.metadata->>'low_price')::int AS low_price,
+      CASE
+        WHEN (s.metadata->>'high_price') IS NOT NULL AND (s.metadata->>'low_price') IS NOT NULL
+        THEN (s.metadata->>'high_price')::int - (s.metadata->>'low_price')::int
+             - LEAST(FLOOR((s.metadata->>'high_price')::int * 0.02), 5000000)
+      END AS margin,
+      i.buy_limit,
+      s.created_at
+    FROM signals s
+    JOIN items i ON s.item_id = i.item_id
+    WHERE s.expires_at > NOW()
+    ORDER BY s.score DESC
+  `;
+
+  return rows.map((r) => ({
+    itemId: r.item_id as number,
+    itemName: r.name as string,
+    itemIcon: r.icon ? wikiIconUrl(r.icon as string) : null,
+    signalType: r.signal_type as string,
+    score: Number(r.score),
+    metadata: (r.metadata ?? {}) as Record<string, unknown>,
+    highPrice: r.high_price as number | null,
+    lowPrice: r.low_price as number | null,
+    margin: r.margin != null ? Number(r.margin) : null,
+    buyLimit: r.buy_limit as number | null,
+    createdAt:
+      r.created_at instanceof Date
+        ? r.created_at.toISOString()
+        : String(r.created_at),
+  }));
+}
+
 export async function getDashboardItems(): Promise<DashboardItem[]> {
   const rows = await sql`
 		WITH latest_prices AS (
