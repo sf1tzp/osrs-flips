@@ -1,15 +1,19 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
+	import { Input } from '$lib/components/ui/input';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Table from '$lib/components/ui/table';
 	import TradeDialog from '$lib/components/trade-dialog.svelte';
 	import { tradeStore } from '$lib/portfolio/trade-store.svelte';
 	import { aggregatePositions, computeSummary } from '$lib/portfolio/positions';
 	import type { DashboardItem } from '$lib/server/db/queries';
-	import type { Trade } from '$lib/portfolio/types';
+	import type { TradePlan } from '$lib/portfolio/types';
+	import { calcGeTax } from '$lib/portfolio/types';
+	import { parseNumeric } from '$lib/utils';
 	import Plus from '@lucide/svelte/icons/plus';
-	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Lock from '@lucide/svelte/icons/lock';
+	import LockOpen from '@lucide/svelte/icons/lock-open';
 
 	let { data } = $props();
 
@@ -27,30 +31,21 @@
 		return map;
 	});
 
-	let positions = $derived(aggregatePositions(tradeStore.trades, priceMap));
-	let summary = $derived(computeSummary(positions));
-	let recentTrades = $derived(tradeStore.trades.slice(0, 20));
+	let aggregation = $derived(aggregatePositions(tradeStore.trades, priceMap));
+	let positions = $derived(aggregation.positions);
+	let summary = $derived(computeSummary(positions, aggregation.realizedPnl));
 
 	let tradeDialogOpen = $state(false);
 	let tradeDialogPrefill = $state<{
 		itemId: number;
 		itemName: string;
 		itemIcon: string | null;
-		suggestedPrice: number;
-		suggestedType: 'buy' | 'sell';
+		instaBuyPrice: number | null;
+		instaSellPrice: number | null;
 	} | null>(null);
 
-	let editingTrade = $state<Trade | null>(null);
-
-	function openNewTrade() {
+	function openNewFlip() {
 		tradeDialogPrefill = null;
-		editingTrade = null;
-		tradeDialogOpen = true;
-	}
-
-	function openEditTrade(trade: Trade) {
-		tradeDialogPrefill = null;
-		editingTrade = trade;
 		tradeDialogOpen = true;
 	}
 
@@ -58,7 +53,7 @@
 
 	async function confirmDelete(id: string) {
 		if (deleteConfirm === id) {
-			await tradeStore.deleteTrade(id);
+			await tradeStore.deletePlan(id);
 			deleteConfirm = null;
 		} else {
 			deleteConfirm = id;
@@ -66,6 +61,55 @@
 				if (deleteConfirm === id) deleteConfirm = null;
 			}, 3000);
 		}
+	}
+
+	// Inline editing state
+	let sellPrices = $state<Record<string, string>>({});
+	let editingQty = $state<Record<string, string>>({});
+	let unlockedPlans = $state(new Set<string>());
+
+	function toggleLock(id: string) {
+		if (unlockedPlans.has(id)) {
+			unlockedPlans.delete(id);
+		} else {
+			unlockedPlans.add(id);
+		}
+		unlockedPlans = new Set(unlockedPlans);
+	}
+
+	async function toggleFilled(plan: TradePlan) {
+		if (plan.status === 'pending') {
+			await tradeStore.markActive(plan.id);
+		} else if (plan.status === 'active') {
+			await tradeStore.unfillPlan(plan.id);
+		}
+	}
+
+	async function toggleSold(plan: TradePlan) {
+		if (plan.status === 'active') {
+			await closePlan(plan);
+		} else if (plan.status === 'closed') {
+			await tradeStore.reopenPlan(plan.id);
+		}
+	}
+
+	async function closePlan(plan: TradePlan) {
+		const raw = sellPrices[plan.id];
+		const price = parseNumeric(raw ?? '') || priceMap[plan.itemId]?.highPrice || 0;
+		if (price <= 0) return;
+
+		await tradeStore.closePlan(plan.id, price);
+		delete sellPrices[plan.id];
+	}
+
+	async function commitQty(plan: TradePlan) {
+		const raw = editingQty[plan.id];
+		if (raw == null) return;
+		const qty = parseNumeric(raw);
+		if (qty > 0 && qty !== plan.quantity) {
+			await tradeStore.updateQuantity(plan.id, qty);
+		}
+		delete editingQty[plan.id];
 	}
 
 	function formatGp(n: number | null): string {
@@ -90,21 +134,26 @@
 		const days = Math.floor(hrs / 24);
 		return `${days}d ago`;
 	}
+
+	function planRealizedPnl(plan: TradePlan): number {
+		const tax = calcGeTax(plan.sellPrice!, plan.itemId);
+		return (plan.sellPrice! - tax - plan.buyPrice) * plan.quantity;
+	}
 </script>
 
 <div class="mx-auto max-w-7xl p-4 sm:p-6">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-2xl font-bold">Portfolio</h1>
-		<Button onclick={openNewTrade} size="sm">
+		<Button onclick={openNewFlip} size="sm">
 			<Plus class="size-4" />
-			New Trade
+			New Flip
 		</Button>
 	</div>
 
 	{#if !tradeStore.initialized}
 		<!-- Loading skeleton -->
-		<div class="grid gap-4 sm:grid-cols-3">
-			{#each Array(3) as _}
+		<div class="grid gap-4 grid-cols-2 lg:grid-cols-4">
+			{#each Array(4) as _}
 				<div class="rounded-lg border p-4">
 					<div class="h-3 w-20 animate-pulse rounded bg-muted"></div>
 					<div class="mt-2 h-6 w-28 animate-pulse rounded bg-muted"></div>
@@ -114,15 +163,15 @@
 	{:else if tradeStore.trades.length === 0}
 		<!-- Empty state -->
 		<div class="rounded-lg border p-12 text-center">
-			<p class="text-muted-foreground mb-4">No positions yet. Add your first trade!</p>
-			<Button onclick={openNewTrade}>
+			<p class="text-muted-foreground mb-4">No flips yet. Start your first flip!</p>
+			<Button onclick={openNewFlip}>
 				<Plus class="size-4" />
-				Add Trade
+				New Flip
 			</Button>
 		</div>
 	{:else}
 		<!-- Summary cards -->
-		<div class="mb-6 grid gap-4 sm:grid-cols-3">
+		<div class="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
 			<div class="rounded-lg border p-4">
 				<p class="text-xs text-muted-foreground">Total Value</p>
 				<p class="text-xl font-bold tabular-nums">{formatGp(summary.totalValue)} gp</p>
@@ -140,6 +189,12 @@
 							({summary.unrealizedPnlPct >= 0 ? '+' : ''}{summary.unrealizedPnlPct}%)
 						</span>
 					{/if}
+				</p>
+			</div>
+			<div class="rounded-lg border p-4">
+				<p class="text-xs text-muted-foreground">Realized P&L</p>
+				<p class="text-xl font-bold tabular-nums {pnlColor(summary.realizedPnl)}">
+					{summary.realizedPnl >= 0 ? '+' : ''}{formatGp(summary.realizedPnl)} gp
 				</p>
 			</div>
 		</div>
@@ -205,46 +260,130 @@
 			</div>
 		{/if}
 
-		<!-- Recent trades -->
+		<!-- Flip plans -->
 		<div>
-			<h2 class="mb-3 text-lg font-semibold">Recent Trades</h2>
+			<h2 class="mb-3 text-lg font-semibold">Flip Plans</h2>
 			<div class="grid gap-2">
-				{#each recentTrades as trade (trade.id)}
+				{#each tradeStore.trades as plan (plan.id)}
+					{@const isClosed = plan.status === 'closed'}
+					{@const isPending = plan.status === 'pending'}
+					{@const isUnlocked = unlockedPlans.has(plan.id)}
+					{@const filledChecked = plan.status !== 'pending'}
+					{@const filledLocked = isClosed && !isUnlocked}
 					<div
-						class="flex items-center justify-between rounded-lg border px-4 py-3"
+						class="rounded-lg border px-4 py-3 transition-opacity {isClosed ? 'opacity-60' : ''}"
 					>
 						<div class="flex items-center gap-3">
-							<Badge variant={trade.type === 'buy' ? 'default' : 'outline'}>
-								{trade.type === 'buy' ? 'BUY' : 'SELL'}
-							</Badge>
-							{#if trade.itemIcon}
-								<img src={trade.itemIcon} alt="" class="size-5 object-contain" />
+							<!-- Item identity -->
+							{#if plan.itemIcon}
+								<img src={plan.itemIcon} alt="" class="size-5 object-contain" />
 							{/if}
-							<div>
-								<span class="text-sm font-medium">{trade.itemName}</span>
-								<span class="text-muted-foreground text-sm">
-									&middot; {trade.quantity.toLocaleString()} @ {trade.pricePerUnit.toLocaleString()} gp
+							<span class="text-sm font-medium">{plan.itemName}</span>
+
+							<!-- Buy info -->
+							<span class="text-muted-foreground text-sm">Buy</span>
+							{#if editingQty[plan.id] != null}
+								<Input
+									type="text"
+									inputmode="decimal"
+									class="h-6 w-16 text-xs tabular-nums"
+									value={editingQty[plan.id]}
+									oninput={(e) => { editingQty[plan.id] = e.currentTarget.value; }}
+									onblur={() => commitQty(plan)}
+									onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitQty(plan); } if (e.key === 'Escape') { delete editingQty[plan.id]; } }}
+								/>
+							{:else}
+								<button
+									type="button"
+									class="text-sm tabular-nums {!isClosed ? 'cursor-pointer hover:underline' : ''}"
+									disabled={isClosed}
+									onclick={() => { if (!isClosed) editingQty[plan.id] = String(plan.quantity); }}
+									title={isClosed ? '' : 'Click to edit quantity'}
+								>
+									{plan.quantity.toLocaleString()}
+								</button>
+							{/if}
+							<span class="text-muted-foreground text-sm">@ {plan.buyPrice.toLocaleString()} gp</span>
+
+							<!-- Filled checkbox -->
+							<label class="ml-2 flex items-center gap-1.5 text-sm {isPending ? 'text-muted-foreground' : ''}">
+								<Checkbox
+									checked={filledChecked}
+									disabled={filledLocked}
+									onCheckedChange={() => toggleFilled(plan)}
+								/>
+								Filled
+							</label>
+
+							<!-- Sell side -->
+							{#if plan.status === 'active'}
+								<span class="text-muted-foreground text-sm ml-2">Sell @</span>
+								<form
+									class="flex items-center gap-1.5"
+									onsubmit={(e) => { e.preventDefault(); closePlan(plan); }}
+								>
+									<Input
+										type="text"
+										inputmode="decimal"
+										placeholder={priceMap[plan.itemId]?.highPrice != null ? String(priceMap[plan.itemId].highPrice) : 'price'}
+										class="h-6 w-20 text-xs"
+										value={sellPrices[plan.id] ?? ''}
+										oninput={(e) => { sellPrices[plan.id] = e.currentTarget.value; }}
+									/>
+									<label class="flex items-center gap-1.5 text-sm text-muted-foreground">
+										<Checkbox
+											checked={false}
+											disabled={(parseNumeric(sellPrices[plan.id] ?? '') || priceMap[plan.itemId]?.highPrice || 0) <= 0}
+											onCheckedChange={() => closePlan(plan)}
+										/>
+										Sold
+									</label>
+								</form>
+							{:else if isClosed}
+								{@const pnl = planRealizedPnl(plan)}
+								<span class="text-muted-foreground text-sm ml-2">Sold @ {formatGp(plan.sellPrice)} gp</span>
+								<label class="flex items-center gap-1.5 text-sm">
+									<Checkbox
+										checked={true}
+										disabled={!isUnlocked}
+										onCheckedChange={() => toggleSold(plan)}
+									/>
+									Sold
+								</label>
+								<span class="text-sm font-medium {pnlColor(pnl)}">
+									{pnl >= 0 ? '+' : ''}{formatGp(pnl)} gp
 								</span>
+							{/if}
+
+							<!-- Spacer + actions -->
+							<div class="ml-auto flex items-center gap-2">
+								{#if plan.snapshotInstaBuy != null || plan.snapshotInstaSell != null}
+									<span class="text-[10px] text-muted-foreground hidden sm:inline" title="GE prices when this flip was created">
+										GE: {formatGp(plan.snapshotInstaBuy)} / {formatGp(plan.snapshotInstaSell)}
+									</span>
+								{/if}
+								<span class="text-xs text-muted-foreground">{timeAgo(plan.createdAt)}</span>
+								<button
+									type="button"
+									class="text-muted-foreground hover:text-foreground transition-colors"
+									title={isUnlocked ? 'Lock plan' : 'Unlock to allow undo'}
+									onclick={() => toggleLock(plan.id)}
+								>
+									{#if isUnlocked}
+										<LockOpen class="size-3.5" />
+									{:else}
+										<Lock class="size-3.5" />
+									{/if}
+								</button>
+								<button
+									type="button"
+									class="text-muted-foreground hover:text-destructive transition-colors"
+									title={deleteConfirm === plan.id ? 'Click again to confirm' : 'Delete flip'}
+									onclick={() => confirmDelete(plan.id)}
+								>
+									<Trash2 class="size-4 {deleteConfirm === plan.id ? 'text-destructive' : ''}" />
+								</button>
 							</div>
-						</div>
-						<div class="flex items-center gap-3">
-							<span class="text-xs text-muted-foreground">{timeAgo(trade.timestamp)}</span>
-							<button
-								type="button"
-								class="text-muted-foreground hover:text-foreground transition-colors"
-								title="Edit trade"
-								onclick={() => openEditTrade(trade)}
-							>
-								<Pencil class="size-4" />
-							</button>
-							<button
-								type="button"
-								class="text-muted-foreground hover:text-destructive transition-colors"
-								title={deleteConfirm === trade.id ? 'Click again to confirm' : 'Delete trade'}
-								onclick={() => confirmDelete(trade.id)}
-							>
-								<Trash2 class="size-4 {deleteConfirm === trade.id ? 'text-destructive' : ''}" />
-							</button>
 						</div>
 					</div>
 				{/each}
@@ -257,5 +396,4 @@
 	bind:open={tradeDialogOpen}
 	items={data.items}
 	prefill={tradeDialogPrefill}
-	editTrade={editingTrade}
 />

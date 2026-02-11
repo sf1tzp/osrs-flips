@@ -22,17 +22,17 @@
 		itemId: number;
 		itemName: string;
 		itemIcon: string | null;
-		suggestedPrice: number;
-		suggestedType: 'buy' | 'sell';
+		instaBuyPrice: number | null;
+		instaSellPrice: number | null;
 	} | null>(null);
 
-	function openQuickTrade(item: DashboardItem, type: 'buy' | 'sell') {
+	function openQuickTrade(item: DashboardItem) {
 		tradeDialogPrefill = {
 			itemId: item.itemId,
 			itemName: item.name,
 			itemIcon: item.icon,
-			suggestedPrice: type === 'buy' ? (item.lowPrice ?? 0) : (item.highPrice ?? 0),
-			suggestedType: type
+			instaBuyPrice: item.highPrice,
+			instaSellPrice: item.lowPrice
 		};
 		tradeDialogOpen = true;
 	}
@@ -263,7 +263,7 @@
 										type="button"
 										class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 										title="Quick trade"
-										onclick={(e) => { e.stopPropagation(); openQuickTrade(item, 'buy'); }}
+										onclick={(e) => { e.stopPropagation(); openQuickTrade(item); }}
 									>
 										<ArrowRightLeft class="size-3.5" />
 										Trade

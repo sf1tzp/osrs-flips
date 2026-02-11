@@ -53,7 +53,6 @@
 	let source = $derived(data.source as PriceHistorySource);
 
 	let tradeDialogOpen = $state(false);
-	let tradeDialogType = $state<'buy' | 'sell'>('buy');
 
 	// Latest prices from history (last data point)
 	let latestHigh = $derived(priceHistory.findLast((p) => p.highPrice != null)?.highPrice ?? 0);
@@ -63,12 +62,11 @@
 		itemId: item.itemId,
 		itemName: item.name,
 		itemIcon: item.icon,
-		suggestedPrice: tradeDialogType === 'buy' ? latestLow : latestHigh,
-		suggestedType: tradeDialogType
+		instaBuyPrice: latestHigh,
+		instaSellPrice: latestLow
 	});
 
-	function openTrade(type: 'buy' | 'sell') {
-		tradeDialogType = type;
+	function openFlip() {
 		tradeDialogOpen = true;
 	}
 
@@ -195,9 +193,8 @@
 			{#if item.members}
 				<Badge variant="outline">P2P</Badge>
 			{/if}
-			<div class="ml-auto flex gap-2">
-				<Button size="sm" variant="outline" onclick={() => openTrade('buy')}>Buy</Button>
-				<Button size="sm" variant="outline" onclick={() => openTrade('sell')}>Sell</Button>
+			<div class="ml-auto">
+				<Button size="sm" variant="outline" onclick={openFlip}>Flip</Button>
 			</div>
 		</div>
 		{#if item.examine}

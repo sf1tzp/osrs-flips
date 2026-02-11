@@ -1,115 +1,120 @@
-import type { Trade, Position, PortfolioSummary } from './types';
-import { calcGeTax } from './types';
+import type {
+  TradePlan,
+  Position,
+  PortfolioSummary,
+  AggregationResult,
+} from "./types";
+import { calcGeTax } from "./types";
 
 interface PriceMap {
-	[itemId: number]: { highPrice: number | null; lowPrice: number | null };
+  [itemId: number]: { highPrice: number | null; lowPrice: number | null };
 }
 
-export function aggregatePositions(trades: Trade[], prices: PriceMap): Position[] {
-	// Group trades by itemId
-	const grouped = new Map<number, Trade[]>();
-	for (const t of trades) {
-		let list = grouped.get(t.itemId);
-		if (!list) {
-			list = [];
-			grouped.set(t.itemId, list);
-		}
-		list.push(t);
-	}
+export function aggregatePositions(
+  plans: TradePlan[],
+  prices: PriceMap,
+): AggregationResult {
+  // Realized P&L from closed plans
+  const closedPlans = plans.filter((p) => p.status === "closed");
+  let totalRealizedPnl = 0;
+  for (const p of closedPlans) {
+    const tax = calcGeTax(p.sellPrice!, p.itemId);
+    totalRealizedPnl += (p.sellPrice! - tax - p.buyPrice) * p.quantity;
+  }
 
-	const positions: Position[] = [];
+  // Active plans → positions
+  const activePlans = plans.filter((p) => p.status === "active");
+  const grouped = new Map<number, TradePlan[]>();
+  for (const p of activePlans) {
+    let list = grouped.get(p.itemId);
+    if (!list) {
+      list = [];
+      grouped.set(p.itemId, list);
+    }
+    list.push(p);
+  }
 
-	for (const [itemId, itemTrades] of grouped) {
-		// Sort chronologically for FIFO
-		const sorted = itemTrades.toSorted((a, b) => a.timestamp - b.timestamp);
+  const positions: Position[] = [];
 
-		// FIFO buy lots: { quantity, pricePerUnit }
-		const lots: { quantity: number; pricePerUnit: number }[] = [];
-		let realizedPnl = 0;
+  for (const [itemId, itemPlans] of grouped) {
+    const quantityHeld = itemPlans.reduce((sum, p) => sum + p.quantity, 0);
+    const totalCost = itemPlans.reduce(
+      (sum, p) => sum + p.quantity * p.buyPrice,
+      0,
+    );
+    const avgCostBasis = totalCost / quantityHeld;
 
-		for (const trade of sorted) {
-			if (trade.type === 'buy') {
-				lots.push({ quantity: trade.quantity, pricePerUnit: trade.pricePerUnit });
-			} else {
-				// Sell: consume earliest buy lots (FIFO)
-				let remaining = trade.quantity;
-				while (remaining > 0 && lots.length > 0) {
-					const lot = lots[0];
-					const consumed = Math.min(remaining, lot.quantity);
-					const sellRevenue = consumed * trade.pricePerUnit;
-					const tax = calcGeTax(trade.pricePerUnit, itemId) * consumed;
-					const costBasis = consumed * lot.pricePerUnit;
-					realizedPnl += sellRevenue - tax - costBasis;
+    const priceInfo = prices[itemId];
+    const currentPrice = priceInfo?.highPrice ?? null;
+    const currentValue =
+      currentPrice != null ? quantityHeld * currentPrice : null;
 
-					lot.quantity -= consumed;
-					remaining -= consumed;
-					if (lot.quantity === 0) lots.shift();
-				}
-			}
-		}
+    let unrealizedPnl: number | null = null;
+    let unrealizedPnlPct: number | null = null;
+    if (currentValue != null) {
+      const taxPerUnit = calcGeTax(currentPrice!, itemId);
+      const netValue = currentValue - taxPerUnit * quantityHeld;
+      unrealizedPnl = netValue - totalCost;
+      unrealizedPnlPct =
+        totalCost > 0
+          ? Math.round((unrealizedPnl / totalCost) * 1000) / 10
+          : null;
+    }
 
-		// Remaining lots = current position
-		const quantityHeld = lots.reduce((sum, l) => sum + l.quantity, 0);
-		if (quantityHeld === 0) continue;
+    const first = itemPlans[0];
+    positions.push({
+      itemId,
+      itemName: first.itemName,
+      itemIcon: first.itemIcon,
+      quantityHeld,
+      totalCost,
+      avgCostBasis: Math.round(avgCostBasis),
+      currentPrice,
+      currentValue,
+      unrealizedPnl,
+      unrealizedPnlPct,
+    });
+  }
 
-		const totalCost = lots.reduce((sum, l) => sum + l.quantity * l.pricePerUnit, 0);
-		const avgCostBasis = totalCost / quantityHeld;
-
-		// Use highPrice (insta-sell value) as current price for valuation
-		const priceInfo = prices[itemId];
-		const currentPrice = priceInfo?.highPrice ?? null;
-		const currentValue = currentPrice != null ? quantityHeld * currentPrice : null;
-
-		let unrealizedPnl: number | null = null;
-		let unrealizedPnlPct: number | null = null;
-		if (currentValue != null) {
-			// Tax would apply if selling at current price
-			const taxPerUnit = calcGeTax(currentPrice!, itemId);
-			const netValue = currentValue - taxPerUnit * quantityHeld;
-			unrealizedPnl = netValue - totalCost;
-			unrealizedPnlPct = totalCost > 0 ? Math.round((unrealizedPnl / totalCost) * 1000) / 10 : null;
-		}
-
-		const first = sorted[0];
-		positions.push({
-			itemId,
-			itemName: first.itemName,
-			itemIcon: first.itemIcon,
-			quantityHeld,
-			totalCost,
-			avgCostBasis: Math.round(avgCostBasis),
-			currentPrice,
-			currentValue,
-			unrealizedPnl,
-			unrealizedPnlPct
-		});
-	}
-
-	// Sort by total value desc (positions with value first)
-	return positions.toSorted((a, b) => (b.currentValue ?? 0) - (a.currentValue ?? 0));
+  return {
+    positions: positions.toSorted(
+      (a, b) => (b.currentValue ?? 0) - (a.currentValue ?? 0),
+    ),
+    realizedPnl: totalRealizedPnl,
+  };
 }
 
-export function computeSummary(positions: Position[]): PortfolioSummary {
-	let totalValue = 0;
-	let totalCost = 0;
+export function computeSummary(
+  positions: Position[],
+  realizedPnl: number,
+): PortfolioSummary {
+  let totalValue = 0;
+  let totalCost = 0;
 
-	for (const p of positions) {
-		totalCost += p.totalCost;
-		if (p.currentValue != null) {
-			totalValue += p.currentValue;
-		}
-	}
+  for (const p of positions) {
+    totalCost += p.totalCost;
+    if (p.currentValue != null) {
+      totalValue += p.currentValue;
+    }
+  }
 
-	// Account for tax on total unrealized
-	let totalTax = 0;
-	for (const p of positions) {
-		if (p.currentPrice != null) {
-			totalTax += calcGeTax(p.currentPrice, p.itemId) * p.quantityHeld;
-		}
-	}
+  // Account for tax on total unrealized
+  let totalTax = 0;
+  for (const p of positions) {
+    if (p.currentPrice != null) {
+      totalTax += calcGeTax(p.currentPrice, p.itemId) * p.quantityHeld;
+    }
+  }
 
-	const unrealizedPnl = totalValue - totalTax - totalCost;
-	const unrealizedPnlPct = totalCost > 0 ? Math.round((unrealizedPnl / totalCost) * 1000) / 10 : null;
+  const unrealizedPnl = totalValue - totalTax - totalCost;
+  const unrealizedPnlPct =
+    totalCost > 0 ? Math.round((unrealizedPnl / totalCost) * 1000) / 10 : null;
 
-	return { totalValue, totalCost, unrealizedPnl, unrealizedPnlPct };
+  return {
+    totalValue,
+    totalCost,
+    unrealizedPnl,
+    unrealizedPnlPct,
+    realizedPnl,
+  };
 }

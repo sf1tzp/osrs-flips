@@ -5,8 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import ItemPicker from '$lib/components/item-picker.svelte';
 	import { tradeStore } from '$lib/portfolio/trade-store.svelte';
-	import { calcGeTax } from '$lib/portfolio/types';
-	import type { Trade } from '$lib/portfolio/types';
+	import type { TradePlan } from '$lib/portfolio/types';
 	import { parseNumeric } from '$lib/utils';
 	import type { DashboardItem } from '$lib/server/db/queries';
 
@@ -14,90 +13,92 @@
 		itemId: number;
 		itemName: string;
 		itemIcon: string | null;
-		suggestedPrice: number;
-		suggestedType: 'buy' | 'sell';
+		instaBuyPrice: number | null;
+		instaSellPrice: number | null;
 	}
 
 	interface Props {
 		open: boolean;
 		items: DashboardItem[];
 		prefill?: Prefill | null;
-		editTrade?: Trade | null;
+		editPlan?: TradePlan | null;
 	}
 
-	let { open = $bindable(false), items, prefill = null, editTrade = null }: Props = $props();
+	let { open = $bindable(false), items, prefill = null, editPlan = null }: Props = $props();
 
-	let isEditing = $derived(editTrade != null);
+	let isEditing = $derived(editPlan != null);
 
 	let selectedItem = $state<{ id: number; name: string; icon: string | null } | null>(null);
-	let tradeType = $state<'buy' | 'sell'>('buy');
+	let snapshotInstaBuy = $state<number | null>(null);
+	let snapshotInstaSell = $state<number | null>(null);
 	let quantity = $state('');
-	let pricePerUnit = $state('');
+	let buyPrice = $state('');
 	let notes = $state('');
 
 	// Reset form when dialog opens
 	$effect(() => {
 		if (open) {
-			if (editTrade) {
-				selectedItem = { id: editTrade.itemId, name: editTrade.itemName, icon: editTrade.itemIcon };
-				tradeType = editTrade.type;
-				quantity = String(editTrade.quantity);
-				pricePerUnit = String(editTrade.pricePerUnit);
-				notes = editTrade.notes;
+			if (editPlan) {
+				selectedItem = { id: editPlan.itemId, name: editPlan.itemName, icon: editPlan.itemIcon };
+				snapshotInstaBuy = editPlan.snapshotInstaBuy;
+				snapshotInstaSell = editPlan.snapshotInstaSell;
+				quantity = String(editPlan.quantity);
+				buyPrice = String(editPlan.buyPrice);
+				notes = editPlan.notes;
 			} else if (prefill) {
 				selectedItem = { id: prefill.itemId, name: prefill.itemName, icon: prefill.itemIcon };
-				tradeType = prefill.suggestedType;
-				pricePerUnit = String(prefill.suggestedPrice);
+				snapshotInstaBuy = prefill.instaBuyPrice;
+				snapshotInstaSell = prefill.instaSellPrice;
+				buyPrice = prefill.instaSellPrice != null ? String(prefill.instaSellPrice) : '';
 				quantity = '';
 				notes = '';
 			} else {
 				selectedItem = null;
-				tradeType = 'buy';
-				pricePerUnit = '';
+				snapshotInstaBuy = null;
+				snapshotInstaSell = null;
+				buyPrice = '';
 				quantity = '';
 				notes = '';
 			}
 		}
 	});
 
-	let price = $derived(parseNumeric(pricePerUnit));
+	let price = $derived(parseNumeric(buyPrice));
 	let qty = $derived(parseNumeric(quantity));
-	let tax = $derived(
-		tradeType === 'sell' && selectedItem && price > 0
-			? calcGeTax(price, selectedItem.id)
-			: 0
-	);
-	let netPerUnit = $derived(tradeType === 'sell' ? price - tax : price);
-	let totalCost = $derived(qty * netPerUnit);
+	let totalCost = $derived(qty * price);
 
 	let valid = $derived(selectedItem != null && qty > 0 && price > 0);
 
 	async function submit() {
 		if (!valid || !selectedItem) return;
 
-		const trade: Trade = {
-			id: editTrade ? editTrade.id : Math.random().toString(36).slice(2) + Date.now().toString(36),
+		const plan: TradePlan = {
+			id: editPlan ? editPlan.id : Math.random().toString(36).slice(2) + Date.now().toString(36),
 			itemId: selectedItem.id,
 			itemName: selectedItem.name,
 			itemIcon: selectedItem.icon,
-			type: tradeType,
+			createdAt: editPlan ? editPlan.createdAt : Date.now(),
+			snapshotInstaBuy,
+			snapshotInstaSell,
 			quantity: qty,
-			pricePerUnit: price,
-			timestamp: editTrade ? editTrade.timestamp : Date.now(),
+			buyPrice: price,
+			status: editPlan ? editPlan.status : 'pending',
+			filledAt: editPlan ? editPlan.filledAt : null,
+			sellPrice: editPlan ? editPlan.sellPrice : null,
+			closedAt: editPlan ? editPlan.closedAt : null,
 			notes: notes.trim()
 		};
 
-		await tradeStore.addTrade(trade);
+		await tradeStore.addPlan(plan);
 		open = false;
 	}
 
 	function onItemSelect(item: DashboardItem) {
 		selectedItem = { id: item.itemId, name: item.name, icon: item.icon };
-		// Pre-fill price from market data
-		if (tradeType === 'buy' && item.lowPrice != null) {
-			pricePerUnit = String(item.lowPrice);
-		} else if (tradeType === 'sell' && item.highPrice != null) {
-			pricePerUnit = String(item.highPrice);
+		snapshotInstaBuy = item.highPrice;
+		snapshotInstaSell = item.lowPrice;
+		if (item.lowPrice != null) {
+			buyPrice = String(item.lowPrice);
 		}
 	}
 </script>
@@ -105,8 +106,8 @@
 <Dialog.Root bind:open>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>{isEditing ? 'Edit Trade' : 'New Trade'}</Dialog.Title>
-			<Dialog.Description>{isEditing ? 'Update trade details.' : 'Log a buy or sell trade.'}</Dialog.Description>
+			<Dialog.Title>{isEditing ? 'Edit Flip' : 'New Flip'}</Dialog.Title>
+			<Dialog.Description>{isEditing ? 'Update flip details.' : 'Place a buy offer to start a flip.'}</Dialog.Description>
 		</Dialog.Header>
 
 		<form
@@ -147,30 +148,14 @@
 				{/if}
 			</div>
 
-			<!-- Type toggle -->
-			<div class="grid gap-2">
-				<Label>Type</Label>
-				<div class="flex gap-2">
-					<Button
-						type="button"
-						size="sm"
-						variant={tradeType === 'buy' ? 'default' : 'outline'}
-						class="flex-1"
-						onclick={() => (tradeType = 'buy')}
-					>
-						Buy
-					</Button>
-					<Button
-						type="button"
-						size="sm"
-						variant={tradeType === 'sell' ? 'default' : 'outline'}
-						class="flex-1"
-						onclick={() => (tradeType = 'sell')}
-					>
-						Sell
-					</Button>
+			<!-- Market snapshot (read-only) -->
+			{#if snapshotInstaBuy != null || snapshotInstaSell != null}
+				<div class="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+					Insta-buy: {snapshotInstaBuy != null ? snapshotInstaBuy.toLocaleString() : '—'} gp
+					&middot;
+					Insta-sell: {snapshotInstaSell != null ? snapshotInstaSell.toLocaleString() : '—'} gp
 				</div>
-			</div>
+			{/if}
 
 			<!-- Quantity -->
 			<div class="grid gap-2">
@@ -178,15 +163,10 @@
 				<Input type="text" inputmode="decimal" placeholder="e.g. 10k" bind:value={quantity} />
 			</div>
 
-			<!-- Price -->
+			<!-- Buy offer price -->
 			<div class="grid gap-2">
-				<Label>Price per unit (gp)</Label>
-				<Input type="text" inputmode="decimal" placeholder="e.g. 3.5m" bind:value={pricePerUnit} />
-				{#if tradeType === 'sell' && tax > 0}
-					<p class="text-xs text-muted-foreground">
-						Tax: {tax.toLocaleString()} gp &middot; Net: {netPerUnit.toLocaleString()} gp
-					</p>
-				{/if}
+				<Label>Buy offer price (gp)</Label>
+				<Input type="text" inputmode="decimal" placeholder="e.g. 3.5m" bind:value={buyPrice} />
 				{#if qty > 0 && price > 0}
 					<p class="text-xs text-muted-foreground">
 						Total: {totalCost.toLocaleString()} gp
@@ -197,12 +177,12 @@
 			<!-- Notes -->
 			<div class="grid gap-2">
 				<Label>Notes <span class="text-muted-foreground font-normal">(optional)</span></Label>
-				<Input type="text" placeholder="e.g. flipping at GE" bind:value={notes} />
+				<Input type="text" placeholder="e.g. good margin on this flip" bind:value={notes} />
 			</div>
 
 			<Dialog.Footer>
 				<Button type="submit" disabled={!valid}>
-					{isEditing ? 'Save' : 'Log Trade'}
+					{isEditing ? 'Save' : 'Create Flip'}
 				</Button>
 			</Dialog.Footer>
 		</form>
