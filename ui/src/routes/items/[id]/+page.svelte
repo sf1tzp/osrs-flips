@@ -102,6 +102,14 @@
 		chartData.filter((d) => d.highPrice != null || d.lowPrice != null)
 	);
 
+	let priceYDomain = $derived.by(() => {
+		const prices = priceData.flatMap((d) =>
+			[d.highPrice, d.lowPrice].filter((v): v is number => v != null)
+		);
+		if (prices.length === 0) return undefined;
+		return [Math.min(...prices), Math.max(...prices)];
+	});
+
 	const priceConfig: ChartConfig = {
 		highPrice: { label: 'Insta-Buy', color: 'oklch(0.65 0.19 145)' },
 		lowPrice: { label: 'Insta-Sell', color: 'oklch(0.65 0.19 25)' },
@@ -239,6 +247,7 @@
 				xScale={priceTimeScale}
 				yScale={priceYScale}
 				y={(d) => d.highPrice ?? d.lowPrice}
+				yDomain={priceYDomain}
 				yNice
 				padding={pricePadding}
 				tooltip={priceTooltip}
