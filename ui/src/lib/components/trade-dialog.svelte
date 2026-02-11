@@ -22,9 +22,12 @@
 		open: boolean;
 		items: DashboardItem[];
 		prefill?: Prefill | null;
+		editTrade?: Trade | null;
 	}
 
-	let { open = $bindable(false), items, prefill = null }: Props = $props();
+	let { open = $bindable(false), items, prefill = null, editTrade = null }: Props = $props();
+
+	let isEditing = $derived(editTrade != null);
 
 	let selectedItem = $state<{ id: number; name: string; icon: string | null } | null>(null);
 	let tradeType = $state<'buy' | 'sell'>('buy');
@@ -35,17 +38,25 @@
 	// Reset form when dialog opens
 	$effect(() => {
 		if (open) {
-			if (prefill) {
+			if (editTrade) {
+				selectedItem = { id: editTrade.itemId, name: editTrade.itemName, icon: editTrade.itemIcon };
+				tradeType = editTrade.type;
+				quantity = String(editTrade.quantity);
+				pricePerUnit = String(editTrade.pricePerUnit);
+				notes = editTrade.notes;
+			} else if (prefill) {
 				selectedItem = { id: prefill.itemId, name: prefill.itemName, icon: prefill.itemIcon };
 				tradeType = prefill.suggestedType;
 				pricePerUnit = String(prefill.suggestedPrice);
+				quantity = '';
+				notes = '';
 			} else {
 				selectedItem = null;
 				tradeType = 'buy';
 				pricePerUnit = '';
+				quantity = '';
+				notes = '';
 			}
-			quantity = '';
-			notes = '';
 		}
 	});
 
@@ -65,14 +76,14 @@
 		if (!valid || !selectedItem) return;
 
 		const trade: Trade = {
-			id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+			id: editTrade ? editTrade.id : Math.random().toString(36).slice(2) + Date.now().toString(36),
 			itemId: selectedItem.id,
 			itemName: selectedItem.name,
 			itemIcon: selectedItem.icon,
 			type: tradeType,
 			quantity: qty,
 			pricePerUnit: price,
-			timestamp: Date.now(),
+			timestamp: editTrade ? editTrade.timestamp : Date.now(),
 			notes: notes.trim()
 		};
 
@@ -94,8 +105,8 @@
 <Dialog.Root bind:open>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>New Trade</Dialog.Title>
-			<Dialog.Description>Log a buy or sell trade.</Dialog.Description>
+			<Dialog.Title>{isEditing ? 'Edit Trade' : 'New Trade'}</Dialog.Title>
+			<Dialog.Description>{isEditing ? 'Update trade details.' : 'Log a buy or sell trade.'}</Dialog.Description>
 		</Dialog.Header>
 
 		<form
@@ -108,7 +119,7 @@
 			<!-- Item -->
 			<div class="grid gap-2">
 				<Label>Item</Label>
-				{#if prefill && selectedItem}
+				{#if (prefill || isEditing) && selectedItem}
 					<div class="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
 						{#if selectedItem.icon}
 							<img src={selectedItem.icon} alt="" class="size-5 object-contain" />
@@ -191,7 +202,7 @@
 
 			<Dialog.Footer>
 				<Button type="submit" disabled={!valid}>
-					Log Trade
+					{isEditing ? 'Save' : 'Log Trade'}
 				</Button>
 			</Dialog.Footer>
 		</form>

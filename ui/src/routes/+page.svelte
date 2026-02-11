@@ -11,6 +11,7 @@
 	import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
 	import ItemRowDetail from '$lib/components/item-row-detail.svelte';
 	import TradeDialog from '$lib/components/trade-dialog.svelte';
+	import ColumnFilterPopover from '$lib/components/column-filter-popover.svelte';
 	import { parseNumeric } from '$lib/utils';
 	import type { DashboardItem } from '$lib/server/db/queries';
 
@@ -42,12 +43,14 @@
 	let sortKey = $state<SortKey>('marginPct');
 	let sortDir = $state<'asc' | 'desc'>('desc');
 	let showTax = $state(true);
-	let minMarginInput = $state('');
-	let minMargin = $derived(parseNumeric(minMarginInput));
-	let minPriceInput = $state('');
-	let minPrice = $derived(parseNumeric(minPriceInput));
-	let minVolumeInput = $state('');
-	let minVolume = $derived(parseNumeric(minVolumeInput));
+	let columnFilters = $state<Record<string, { min: string; max: string }>>({
+		highPrice: { min: '', max: '' },
+		lowPrice: { min: '', max: '' },
+		margin: { min: '', max: '' },
+		marginPct: { min: '', max: '' },
+		buyLimit: { min: '', max: '' },
+		volume24h: { min: '', max: '' },
+	});
 	let expandedId = $state<number | null>(null);
 
 	function toggleExpand(itemId: number) {
@@ -80,45 +83,6 @@
 		}
 	}
 
-	let filtered = $derived.by(() => {
-		const q = search.toLowerCase();
-		let items = data.items;
-		if (q) {
-			items = items.filter((i) => i.name.toLowerCase().includes(q));
-		}
-		if (minMargin > 0) {
-			items = items.filter((i) => {
-				const m = getMargin(i);
-				return m != null && m >= minMargin;
-			});
-		}
-		if (minPrice > 0) {
-			items = items.filter((i) => i.lowPrice != null && i.lowPrice >= minPrice);
-		}
-		if (minVolume > 0) {
-			items = items.filter((i) => i.volume24h != null && i.volume24h >= minVolume);
-		}
-		return items.toSorted((a, b) => {
-			let av: string | number | boolean | null;
-			let bv: string | number | boolean | null;
-			if (sortKey === 'margin') {
-				av = getMargin(a);
-				bv = getMargin(b);
-			} else if (sortKey === 'marginPct') {
-				av = getMarginPct(a);
-				bv = getMarginPct(b);
-			} else {
-				av = a[sortKey];
-				bv = b[sortKey];
-			}
-			if (av == null && bv == null) return 0;
-			if (av == null) return 1;
-			if (bv == null) return -1;
-			const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-			return sortDir === 'asc' ? cmp : -cmp;
-		});
-	});
-
 	function formatGp(n: number | null): string {
 		if (n == null) return '—';
 		return n.toLocaleString();
@@ -138,15 +102,62 @@
 		return '';
 	}
 
-	const columns: { key: SortKey; label: string }[] = [
+	const columns: { key: SortKey; label: string; filterable?: boolean }[] = [
 		{ key: 'name', label: 'Item' },
-		{ key: 'highPrice', label: 'Insta-Buy' },
-		{ key: 'lowPrice', label: 'Insta-Sell' },
-		{ key: 'margin', label: 'Margin' },
-		{ key: 'marginPct', label: 'Margin %' },
-		{ key: 'buyLimit', label: 'Buy Limit' },
-		{ key: 'volume24h', label: '24h Volume' },
+		{ key: 'highPrice', label: 'Insta-Buy', filterable: true },
+		{ key: 'lowPrice', label: 'Insta-Sell', filterable: true },
+		{ key: 'margin', label: 'Margin', filterable: true },
+		{ key: 'marginPct', label: 'Margin %', filterable: true },
+		{ key: 'buyLimit', label: 'Buy Limit', filterable: true },
+		{ key: 'volume24h', label: '24h Volume', filterable: true },
 	];
+
+	function getColumnValue(item: DashboardItem, key: SortKey): number | null {
+		if (key === 'margin') return getMargin(item);
+		if (key === 'marginPct') return getMarginPct(item);
+		const v = item[key];
+		return typeof v === 'number' ? v : null;
+	}
+
+	let filtered = $derived.by(() => {
+		const q = search.toLowerCase();
+		let items = data.items;
+		if (q) {
+			items = items.filter((i) => i.name.toLowerCase().includes(q));
+		}
+		for (const col of columns) {
+			if (!col.filterable) continue;
+			const f = columnFilters[col.key];
+			if (!f) continue;
+			const minVal = parseNumeric(f.min);
+			const maxVal = parseNumeric(f.max);
+			if (minVal > 0 || maxVal > 0) {
+				items = items.filter((i) => {
+					const v = getColumnValue(i, col.key);
+					if (v == null) return false;
+					if (minVal > 0 && v < minVal) return false;
+					if (maxVal > 0 && v > maxVal) return false;
+					return true;
+				});
+			}
+		}
+		return items.toSorted((a, b) => {
+			let av: string | number | boolean | null;
+			let bv: string | number | boolean | null;
+			if (sortKey === 'name') {
+				av = a[sortKey];
+				bv = b[sortKey];
+			} else {
+				av = getColumnValue(a, sortKey);
+				bv = getColumnValue(b, sortKey);
+			}
+			if (av == null && bv == null) return 0;
+			if (av == null) return 1;
+			if (bv == null) return -1;
+			const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+			return sortDir === 'asc' ? cmp : -cmp;
+		});
+	});
 </script>
 
 <div class="mx-auto max-w-7xl p-4 sm:p-6">
@@ -157,27 +168,6 @@
 				<Switch bind:checked={showTax} />
 				<span class="text-muted-foreground">GE Tax</span>
 			</label>
-			<div class="w-28">
-				<Input
-					type="text"
-					placeholder="Min margin"
-					bind:value={minMarginInput}
-				/>
-			</div>
-			<div class="w-28">
-				<Input
-					type="text"
-					placeholder="Min price"
-					bind:value={minPriceInput}
-				/>
-			</div>
-			<div class="w-28">
-				<Input
-					type="text"
-					placeholder="Min volume"
-					bind:value={minVolumeInput}
-				/>
-			</div>
 			<div class="relative w-full sm:w-72">
 				<Search class="text-muted-foreground absolute left-2.5 top-2.5 size-4" />
 				<Input
@@ -195,21 +185,30 @@
 		<div class="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b bg-muted/50">
 			{#each columns as col}
 				<div class="px-4 py-3 text-sm font-medium text-muted-foreground">
-					<button
-						class="inline-flex w-full cursor-pointer items-center gap-1 select-none"
-						onclick={() => toggleSort(col.key)}
-					>
-						{col.label}
-						{#if sortKey === col.key}
-							{#if sortDir === 'asc'}
-								<ArrowUp class="size-3.5" />
+					<div class="inline-flex w-full items-center gap-1">
+						<button
+							class="inline-flex cursor-pointer items-center gap-1 select-none"
+							onclick={() => toggleSort(col.key)}
+						>
+							{col.label}
+							{#if sortKey === col.key}
+								{#if sortDir === 'asc'}
+									<ArrowUp class="size-3.5" />
+								{:else}
+									<ArrowDown class="size-3.5" />
+								{/if}
 							{:else}
-								<ArrowDown class="size-3.5" />
+								<ArrowUpDown class="size-3.5 opacity-30" />
 							{/if}
-						{:else}
-							<ArrowUpDown class="size-3.5 opacity-30" />
+						</button>
+						{#if col.filterable}
+							<ColumnFilterPopover
+								label={col.label}
+								bind:min={columnFilters[col.key].min}
+								bind:max={columnFilters[col.key].max}
+							/>
 						{/if}
-					</button>
+					</div>
 				</div>
 			{/each}
 		</div>

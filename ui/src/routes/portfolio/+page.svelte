@@ -6,7 +6,9 @@
 	import { tradeStore } from '$lib/portfolio/trade-store.svelte';
 	import { aggregatePositions, computeSummary } from '$lib/portfolio/positions';
 	import type { DashboardItem } from '$lib/server/db/queries';
+	import type { Trade } from '$lib/portfolio/types';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	let { data } = $props();
@@ -38,8 +40,17 @@
 		suggestedType: 'buy' | 'sell';
 	} | null>(null);
 
+	let editingTrade = $state<Trade | null>(null);
+
 	function openNewTrade() {
 		tradeDialogPrefill = null;
+		editingTrade = null;
+		tradeDialogOpen = true;
+	}
+
+	function openEditTrade(trade: Trade) {
+		tradeDialogPrefill = null;
+		editingTrade = trade;
 		tradeDialogOpen = true;
 	}
 
@@ -220,6 +231,14 @@
 							<span class="text-xs text-muted-foreground">{timeAgo(trade.timestamp)}</span>
 							<button
 								type="button"
+								class="text-muted-foreground hover:text-foreground transition-colors"
+								title="Edit trade"
+								onclick={() => openEditTrade(trade)}
+							>
+								<Pencil class="size-4" />
+							</button>
+							<button
+								type="button"
 								class="text-muted-foreground hover:text-destructive transition-colors"
 								title={deleteConfirm === trade.id ? 'Click again to confirm' : 'Delete trade'}
 								onclick={() => confirmDelete(trade.id)}
@@ -238,4 +257,5 @@
 	bind:open={tradeDialogOpen}
 	items={data.items}
 	prefill={tradeDialogPrefill}
+	editTrade={editingTrade}
 />
