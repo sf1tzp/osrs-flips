@@ -1,33 +1,11 @@
 <script lang="ts">
   import { Badge } from '$lib/components/ui/badge';
-  import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
-  import TradeDialog from '$lib/components/trade-dialog.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
 
   let { data } = $props();
-
-  let tradeDialogOpen = $state(false);
-  let tradeDialogPrefill = $state<{
-    itemId: number;
-    itemName: string;
-    itemIcon: string | null;
-    instaBuyPrice: number | null;
-    instaSellPrice: number | null;
-  } | null>(null);
-
-  function openSignalTrade(signal: ActiveSignal) {
-    tradeDialogPrefill = {
-      itemId: signal.itemId,
-      itemName: signal.itemName,
-      itemIcon: signal.itemIcon,
-      instaBuyPrice: signal.highPrice,
-      instaSellPrice: signal.lowPrice
-    };
-    tradeDialogOpen = true;
-  }
 
   function signalLabel(type: string): string {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -43,22 +21,9 @@
     return `/faq#${map[type] ?? type}`;
   }
 
-  function marginPct(signal: ActiveSignal): number | null {
-    if (signal.highPrice == null || signal.lowPrice == null || signal.lowPrice === 0) return null;
-    if (signal.margin == null) return null;
-    return Math.round((signal.margin / signal.lowPrice) * 1000) / 10;
-  }
+  type SortKey = 'itemName' | 'signalType' | 'score' | 'lowPrice' | 'highPrice' | 'createdAt';
 
-  type SortKey =
-    | 'itemName'
-    | 'signalType'
-    | 'lowPrice'
-    | 'highPrice'
-    | 'margin'
-    | 'marginPct'
-    | 'score';
-
-  let sortKey = $state<SortKey>('margin');
+  let sortKey = $state<SortKey>('score');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
   function toggleSort(key: SortKey) {
@@ -76,21 +41,19 @@
         return signal.itemName;
       case 'signalType':
         return signal.signalType;
+      case 'score':
+        return signal.score;
       case 'lowPrice':
         return signal.lowPrice;
       case 'highPrice':
         return signal.highPrice;
-      case 'margin':
-        return signal.margin;
-      case 'marginPct':
-        return marginPct(signal);
-      case 'score':
-        return signal.score;
+      case 'createdAt':
+        return signal.createdAt;
     }
   }
 
   let sorted = $derived.by(() => {
-    return data.flipSignals.toSorted((a, b) => {
+    return data.momentumSignals.toSorted((a, b) => {
       const av = getSortValue(a, sortKey);
       const bv = getSortValue(b, sortKey);
       if (av == null && bv == null) return 0;
@@ -101,29 +64,44 @@
     });
   });
 
-  const columns: { key: SortKey; label: string }[] = [
-    { key: 'itemName', label: 'Item' },
-    { key: 'signalType', label: 'Type' },
-    { key: 'lowPrice', label: 'Buy' },
-    { key: 'highPrice', label: 'Sell' },
-    { key: 'margin', label: 'Margin' },
-    { key: 'marginPct', label: 'Margin %' },
-    { key: 'score', label: 'Score' }
-  ];
-
   function formatGp(n: number | null): string {
     if (n == null) return '—';
     return n.toLocaleString();
   }
+
+  function formatTime(iso: string): string {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH}h ago`;
+    return `${Math.floor(diffH / 24)}d ago`;
+  }
+
+  const columns: { key: SortKey; label: string }[] = [
+    { key: 'itemName', label: 'Item' },
+    { key: 'signalType', label: 'Type' },
+    { key: 'score', label: 'Score' },
+    { key: 'lowPrice', label: 'Buy' },
+    { key: 'highPrice', label: 'Sell' },
+    { key: 'createdAt', label: 'Detected' }
+  ];
 </script>
 
-<h1 class="mb-4 text-2xl font-bold">
-  Flip Signals
-  <span class="text-lg font-normal text-muted-foreground">({data.flipSignals.length})</span>
+<h1 class="mb-2 text-2xl font-bold">
+  Momentum Signals
+  <span class="text-lg font-normal text-muted-foreground">({data.momentumSignals.length})</span>
 </h1>
+<p class="mb-4 text-sm text-muted-foreground">
+  These signals detect momentum shifts before a flip opportunity appears. Watch these items for
+  developing margins.
+</p>
 
 {#if sorted.length === 0}
-  <p class="text-sm text-muted-foreground">No active flip signals right now.</p>
+  <p class="text-sm text-muted-foreground">No active momentum signals right now.</p>
 {:else}
   <div class="overflow-x-auto rounded-lg border">
     <table class="w-full text-sm">
@@ -148,12 +126,10 @@
               </button>
             </th>
           {/each}
-          <th class="px-4 py-3"></th>
         </tr>
       </thead>
       <tbody>
         {#each sorted as signal}
-          {@const mPct = marginPct(signal)}
           <tr class="border-b transition-colors hover:bg-muted/50">
             <td class="px-4 py-3 font-medium">
               <a
@@ -173,42 +149,13 @@
                 </Badge>
               </a>
             </td>
+            <td class="px-4 py-3 tabular-nums">{signal.score.toFixed(2)}</td>
             <td class="px-4 py-3 tabular-nums">{formatGp(signal.lowPrice)}</td>
             <td class="px-4 py-3 tabular-nums">{formatGp(signal.highPrice)}</td>
-            <td
-              class="px-4 py-3 tabular-nums {signal.margin != null && signal.margin > 0
-                ? 'text-green-500'
-                : signal.margin != null && signal.margin < 0
-                  ? 'text-red-500'
-                  : ''}"
-            >
-              {formatGp(signal.margin)}
-            </td>
-            <td
-              class="px-4 py-3 tabular-nums {mPct != null && mPct > 0
-                ? 'text-green-500'
-                : mPct != null && mPct < 0
-                  ? 'text-red-500'
-                  : ''}"
-            >
-              {mPct != null ? `${mPct}%` : '—'}
-            </td>
-            <td class="px-4 py-3 tabular-nums">{signal.score.toFixed(2)}</td>
-            <td class="px-4 py-3">
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                onclick={() => openSignalTrade(signal)}
-              >
-                <ArrowRightLeft class="size-3.5" />
-                Flip
-              </button>
-            </td>
+            <td class="px-4 py-3 text-muted-foreground">{formatTime(signal.createdAt)}</td>
           </tr>
         {/each}
       </tbody>
     </table>
   </div>
 {/if}
-
-<TradeDialog bind:open={tradeDialogOpen} items={[]} prefill={tradeDialogPrefill} />
