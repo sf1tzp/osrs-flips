@@ -190,7 +190,7 @@
 				Flip Opportunities
 			</h2>
 			<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-				{#each data.signals as signal}
+				{#each data.signals.slice(0, 5) as signal}
 					{@const mPct = marginPctFromSignal(signal)}
 					<div class="flex flex-col gap-2 rounded-lg border p-4 transition-colors hover:bg-muted/50">
 						<div class="flex items-center justify-between">
@@ -198,7 +198,9 @@
 								{#if signal.itemIcon}
 									<img src={signal.itemIcon} alt="" class="size-5 object-contain" />
 								{/if}
-								<span class="text-sm font-medium">{signal.itemName}</span>
+								<a href="/items/{signal.itemId}" class="text-sm font-medium hover:underline">
+									{signal.itemName}
+								</a>
 							</div>
 							<Badge variant="secondary" class="text-[10px]">
 								{signalLabel(signal.signalType)} &middot; {signal.score.toFixed(2)}
@@ -223,6 +225,11 @@
 					</div>
 				{/each}
 			</div>
+			{#if data.signals.length > 5}
+				<a href="/signals" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">
+					View all {data.signals.length} signals &rarr;
+				</a>
+			{/if}
 		</div>
 	{/if}
 
