@@ -61,6 +61,16 @@ export function aggregatePositions(
           : null;
     }
 
+    // Weighted average target sell price from plans that have one set
+    const withSell = itemPlans.filter((p) => p.sellPrice != null);
+    let targetSellPrice: number | null = null;
+    if (withSell.length > 0) {
+      const totalSellQty = withSell.reduce((s, p) => s + p.quantity, 0);
+      targetSellPrice = Math.round(
+        withSell.reduce((s, p) => s + p.quantity * p.sellPrice!, 0) / totalSellQty,
+      );
+    }
+
     const first = itemPlans[0];
     positions.push({
       itemId,
@@ -71,6 +81,7 @@ export function aggregatePositions(
       avgCostBasis: Math.round(avgCostBasis),
       currentPrice,
       currentValue,
+      targetSellPrice,
       unrealizedPnl,
       unrealizedPnlPct,
     });

@@ -12,8 +12,6 @@
 	import { parseNumeric } from '$lib/utils';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import Lock from '@lucide/svelte/icons/lock';
-	import LockOpen from '@lucide/svelte/icons/lock-open';
 
 	let { data } = $props();
 
@@ -64,18 +62,8 @@
 	}
 
 	// Inline editing state
-	let sellPrices = $state<Record<string, string>>({});
 	let editingQty = $state<Record<string, string>>({});
-	let unlockedPlans = $state(new Set<string>());
-
-	function toggleLock(id: string) {
-		if (unlockedPlans.has(id)) {
-			unlockedPlans.delete(id);
-		} else {
-			unlockedPlans.add(id);
-		}
-		unlockedPlans = new Set(unlockedPlans);
-	}
+	let editingSellPrice = $state<Record<string, string>>({});
 
 	async function toggleFilled(plan: TradePlan) {
 		if (plan.status === 'pending') {
@@ -94,12 +82,19 @@
 	}
 
 	async function closePlan(plan: TradePlan) {
-		const raw = sellPrices[plan.id];
-		const price = parseNumeric(raw ?? '') || priceMap[plan.itemId]?.highPrice || 0;
+		const price = plan.sellPrice || priceMap[plan.itemId]?.highPrice || 0;
 		if (price <= 0) return;
-
 		await tradeStore.closePlan(plan.id, price);
-		delete sellPrices[plan.id];
+	}
+
+	async function commitSellPrice(plan: TradePlan) {
+		const raw = editingSellPrice[plan.id];
+		if (raw == null) return;
+		const price = parseNumeric(raw);
+		if (price > 0 && price !== plan.sellPrice) {
+			await tradeStore.updateSellPrice(plan.id, price);
+		}
+		delete editingSellPrice[plan.id];
 	}
 
 	async function commitQty(plan: TradePlan) {
@@ -209,9 +204,9 @@
 							<Table.Row>
 								<Table.Head>Item</Table.Head>
 								<Table.Head class="text-right">Qty</Table.Head>
-								<Table.Head class="text-right">Avg Cost</Table.Head>
+								<Table.Head class="text-right">Cost</Table.Head>
+								<Table.Head class="text-right">Target</Table.Head>
 								<Table.Head class="text-right">Current</Table.Head>
-								<Table.Head class="text-right">Value</Table.Head>
 								<Table.Head class="text-right">P&L</Table.Head>
 								<Table.Head class="text-right">P&L %</Table.Head>
 							</Table.Row>
@@ -237,10 +232,10 @@
 										{formatGp(pos.avgCostBasis)}
 									</Table.Cell>
 									<Table.Cell class="text-right tabular-nums">
-										{formatGp(pos.currentPrice)}
+										{formatGp(pos.targetSellPrice)}
 									</Table.Cell>
 									<Table.Cell class="text-right tabular-nums">
-										{formatGp(pos.currentValue)}
+										{formatGp(pos.currentPrice)}
 									</Table.Cell>
 									<Table.Cell class="text-right tabular-nums {pnlColor(pos.unrealizedPnl)}">
 										{pos.unrealizedPnl != null
@@ -267,9 +262,7 @@
 				{#each tradeStore.trades as plan (plan.id)}
 					{@const isClosed = plan.status === 'closed'}
 					{@const isPending = plan.status === 'pending'}
-					{@const isUnlocked = unlockedPlans.has(plan.id)}
 					{@const filledChecked = plan.status !== 'pending'}
-					{@const filledLocked = isClosed && !isUnlocked}
 					<div
 						class="rounded-lg border px-4 py-3 transition-opacity {isClosed ? 'opacity-60' : ''}"
 					>
@@ -309,67 +302,54 @@
 							<label class="ml-2 flex items-center gap-1.5 text-sm {isPending ? 'text-muted-foreground' : ''}">
 								<Checkbox
 									checked={filledChecked}
-									disabled={filledLocked}
+									disabled={isClosed}
 									onCheckedChange={() => toggleFilled(plan)}
 								/>
 								Filled
 							</label>
 
 							<!-- Sell side -->
-							{#if plan.status === 'active'}
 								<span class="text-muted-foreground text-sm ml-2">Sell @</span>
-								<form
-									class="flex items-center gap-1.5"
-									onsubmit={(e) => { e.preventDefault(); closePlan(plan); }}
-								>
+								{#if editingSellPrice[plan.id] != null}
 									<Input
 										type="text"
 										inputmode="decimal"
+										class="h-6 w-20 text-xs tabular-nums"
 										placeholder={priceMap[plan.itemId]?.highPrice != null ? String(priceMap[plan.itemId].highPrice) : 'price'}
-										class="h-6 w-20 text-xs"
-										value={sellPrices[plan.id] ?? ''}
-										oninput={(e) => { sellPrices[plan.id] = e.currentTarget.value; }}
+										value={editingSellPrice[plan.id]}
+										oninput={(e) => { editingSellPrice[plan.id] = e.currentTarget.value; }}
+										onblur={() => commitSellPrice(plan)}
+										onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitSellPrice(plan); } if (e.key === 'Escape') { delete editingSellPrice[plan.id]; } }}
 									/>
-									<label class="flex items-center gap-1.5 text-sm text-muted-foreground">
-										<Checkbox
-											checked={false}
-											disabled={(parseNumeric(sellPrices[plan.id] ?? '') || priceMap[plan.itemId]?.highPrice || 0) <= 0}
-											onCheckedChange={() => closePlan(plan)}
-										/>
-										Sold
-									</label>
-								</form>
-							{:else if isClosed}
-								{@const pnl = planRealizedPnl(plan)}
-								<span class="text-muted-foreground text-sm ml-2">Sold @ {formatGp(plan.sellPrice)} gp</span>
-								<label class="flex items-center gap-1.5 text-sm">
+								{:else}
+									<button
+										type="button"
+										class="text-sm tabular-nums {plan.status === 'active' ? 'cursor-pointer hover:underline' : ''}"
+										disabled={isClosed}
+										onclick={() => { if (!isClosed) editingSellPrice[plan.id] = plan.sellPrice != null ? String(plan.sellPrice) : ''; }}
+										title={isClosed ? '' : 'Click to set sell price'}
+									>
+										{plan.sellPrice != null ? `${plan.sellPrice.toLocaleString()} gp` : (priceMap[plan.itemId]?.highPrice != null ? `${priceMap[plan.itemId].highPrice!.toLocaleString()} gp` : '--')}
+									</button>
+								{/if}
+								<label class="flex items-center gap-1.5 text-sm {isClosed ? '' : 'text-muted-foreground'}">
 									<Checkbox
-										checked={true}
-										disabled={!isUnlocked}
+										checked={isClosed}
+										disabled={!isClosed && (plan.sellPrice || priceMap[plan.itemId]?.highPrice || 0) <= 0}
 										onCheckedChange={() => toggleSold(plan)}
 									/>
 									Sold
 								</label>
-								<span class="text-sm font-medium {pnlColor(pnl)}">
-									{pnl >= 0 ? '+' : ''}{formatGp(pnl)} gp
-								</span>
-							{/if}
+								{#if isClosed}
+									{@const pnl = planRealizedPnl(plan)}
+									<span class="text-sm font-medium {pnlColor(pnl)}">
+										{pnl >= 0 ? '+' : ''}{formatGp(pnl)} gp
+									</span>
+								{/if}
 
 							<!-- Spacer + actions -->
 							<div class="ml-auto flex items-center gap-2">
 								<span class="text-xs text-muted-foreground">{timeAgo(plan.createdAt)}</span>
-								<button
-									type="button"
-									class="text-muted-foreground hover:text-foreground transition-colors"
-									title={isUnlocked ? 'Lock plan' : 'Unlock to allow undo'}
-									onclick={() => toggleLock(plan.id)}
-								>
-									{#if isUnlocked}
-										<LockOpen class="size-3.5" />
-									{:else}
-										<Lock class="size-3.5" />
-									{/if}
-								</button>
 								<button
 									type="button"
 									class="text-muted-foreground hover:text-destructive transition-colors"

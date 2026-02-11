@@ -33,6 +33,7 @@ export interface Position {
   avgCostBasis: number;
   currentPrice: number | null;
   currentValue: number | null;
+  targetSellPrice: number | null;
   unrealizedPnl: number | null;
   unrealizedPnlPct: number | null;
 }

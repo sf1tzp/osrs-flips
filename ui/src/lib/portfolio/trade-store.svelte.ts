@@ -78,6 +78,16 @@ class TradeStore {
     await this.refresh();
   }
 
+  async updateSellPrice(id: string, sellPrice: number) {
+    if (!browser || sellPrice <= 0) return;
+    const db = await getDb();
+    const plan = (await db.get(STORE_NAME, id)) as TradePlan | undefined;
+    if (!plan || plan.status !== "active") return;
+    plan.sellPrice = sellPrice;
+    await db.put(STORE_NAME, plan);
+    await this.refresh();
+  }
+
   async closePlan(id: string, sellPrice: number) {
     if (!browser) return;
     const db = await getDb();
@@ -96,7 +106,6 @@ class TradeStore {
     const plan = (await db.get(STORE_NAME, id)) as TradePlan | undefined;
     if (!plan || plan.status !== "closed") return;
     plan.status = "active";
-    plan.sellPrice = null;
     plan.closedAt = null;
     await db.put(STORE_NAME, plan);
     await this.refresh();
