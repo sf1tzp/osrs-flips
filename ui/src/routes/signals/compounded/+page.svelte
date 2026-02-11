@@ -5,10 +5,17 @@
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import TradeDialog from '$lib/components/trade-dialog.svelte';
+  import ItemRowDetail from '$lib/components/item-row-detail.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
   import type { CompoundedItem } from '../+layout.server';
 
   let { data } = $props();
+
+  let expandedId = $state<number | null>(null);
+
+  function toggleExpand(itemId: number) {
+    expandedId = expandedId === itemId ? null : itemId;
+  }
 
   let tradeDialogOpen = $state(false);
   let tradeDialogPrefill = $state<{
@@ -139,11 +146,21 @@
       </thead>
       <tbody>
         {#each sorted as item}
-          <tr class="border-b transition-colors hover:bg-muted/50">
+          {@const isExpanded = expandedId === item.itemId}
+          <tr
+            class="border-b transition-colors cursor-pointer {isExpanded
+              ? 'bg-muted/30'
+              : 'hover:bg-muted/50'}"
+            onclick={() => toggleExpand(item.itemId)}
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => e.key === 'Enter' && toggleExpand(item.itemId)}
+          >
             <td class="px-4 py-3 font-medium">
               <a
                 href="/items/{item.itemId}?from=signals"
                 class="inline-flex items-center gap-2 hover:underline"
+                onclick={(e) => e.stopPropagation()}
               >
                 {#if item.itemIcon}
                   <img src={item.itemIcon} alt="" class="size-5 object-contain" />
@@ -154,7 +171,10 @@
             <td class="px-4 py-3">
               <div class="flex flex-wrap gap-1">
                 {#each item.signals as signal}
-                  <a href={faqAnchor(signal.signalType)}>
+                  <a
+                    href={faqAnchor(signal.signalType)}
+                    onclick={(e) => e.stopPropagation()}
+                  >
                     <Badge variant="secondary" class="text-[10px] hover:bg-secondary/80">
                       {signalLabel(signal.signalType)}
                       <span class="ml-1 opacity-60">{signal.score.toFixed(2)}</span>
@@ -177,13 +197,23 @@
               <button
                 type="button"
                 class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                onclick={() => openTrade(item)}
+                onclick={(e) => {
+                  e.stopPropagation();
+                  openTrade(item);
+                }}
               >
                 <ArrowRightLeft class="size-3.5" />
                 Flip
               </button>
             </td>
           </tr>
+          {#if isExpanded}
+            <tr class="bg-muted/30">
+              <td colspan={columns.length + 1}>
+                <ItemRowDetail itemId={item.itemId} />
+              </td>
+            </tr>
+          {/if}
         {/each}
       </tbody>
     </table>

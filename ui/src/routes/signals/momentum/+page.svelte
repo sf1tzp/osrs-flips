@@ -3,9 +3,16 @@
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
+  import ItemRowDetail from '$lib/components/item-row-detail.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
 
   let { data } = $props();
+
+  let expandedId = $state<number | null>(null);
+
+  function toggleExpand(itemId: number) {
+    expandedId = expandedId === itemId ? null : itemId;
+  }
 
   function signalLabel(type: string): string {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -130,11 +137,21 @@
       </thead>
       <tbody>
         {#each sorted as signal}
-          <tr class="border-b transition-colors hover:bg-muted/50">
+          {@const isExpanded = expandedId === signal.itemId}
+          <tr
+            class="border-b transition-colors cursor-pointer {isExpanded
+              ? 'bg-muted/30'
+              : 'hover:bg-muted/50'}"
+            onclick={() => toggleExpand(signal.itemId)}
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => e.key === 'Enter' && toggleExpand(signal.itemId)}
+          >
             <td class="px-4 py-3 font-medium">
               <a
                 href="/items/{signal.itemId}?from=momentum"
                 class="inline-flex items-center gap-2 hover:underline"
+                onclick={(e) => e.stopPropagation()}
               >
                 {#if signal.itemIcon}
                   <img src={signal.itemIcon} alt="" class="size-5 object-contain" />
@@ -143,7 +160,10 @@
               </a>
             </td>
             <td class="px-4 py-3">
-              <a href={faqAnchor(signal.signalType)}>
+              <a
+                href={faqAnchor(signal.signalType)}
+                onclick={(e) => e.stopPropagation()}
+              >
                 <Badge variant="secondary" class="text-[10px] hover:bg-secondary/80">
                   {signalLabel(signal.signalType)}
                 </Badge>
@@ -154,6 +174,13 @@
             <td class="px-4 py-3 tabular-nums">{formatGp(signal.highPrice)}</td>
             <td class="px-4 py-3 text-muted-foreground">{formatTime(signal.createdAt)}</td>
           </tr>
+          {#if isExpanded}
+            <tr class="bg-muted/30">
+              <td colspan={columns.length}>
+                <ItemRowDetail itemId={signal.itemId} />
+              </td>
+            </tr>
+          {/if}
         {/each}
       </tbody>
     </table>
