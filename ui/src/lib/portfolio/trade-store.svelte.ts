@@ -92,7 +92,7 @@ class TradeStore {
     if (!browser || sellPrice <= 0) return;
     const db = await getDb();
     const plan = (await db.get(STORE_NAME, id)) as TradePlan | undefined;
-    if (!plan || plan.status !== 'active') return;
+    if (!plan || plan.status === 'closed') return;
     plan.sellPrice = sellPrice;
     await db.put(STORE_NAME, plan);
     await this.refresh();

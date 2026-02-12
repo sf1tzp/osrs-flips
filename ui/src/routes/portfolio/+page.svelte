@@ -178,10 +178,10 @@
   {:else}
     <!-- Summary cards -->
     <div class="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-      <div class="rounded-lg border p-4">
+      <!-- <div class="rounded-lg border p-4">
         <p class="text-xs text-muted-foreground">Total Value</p>
         <p class="text-xl font-bold tabular-nums">{formatGp(summary.totalValue)} gp</p>
-      </div>
+      </div> -->
       <div class="rounded-lg border p-4">
         <p class="text-xs text-muted-foreground">Total Cost</p>
         <p class="text-xl font-bold tabular-nums">{formatGp(summary.totalCost)} gp</p>
@@ -401,7 +401,7 @@
               {:else}
                 <button
                   type="button"
-                  class="text-sm tabular-nums {plan.status === 'active'
+                  class="text-sm tabular-nums {!isClosed
                     ? 'cursor-pointer hover:underline'
                     : ''}"
                   disabled={isClosed}
@@ -438,8 +438,8 @@
               {:else if plan.sellPrice != null && plan.sellPrice > 0}
                 {@const tax = calcGeTax(plan.sellPrice, plan.itemId)}
                 {@const projected = (plan.sellPrice - tax - plan.buyPrice) * plan.quantity}
-                <span class="text-sm font-medium text-blue-500">
-                  {projected >= 0 ? '+' : ''}{formatGp(projected)} gp projected
+                <span class="text-sm italic font-medium text-blue-500">
+                  ({projected >= 0 ? '+' : '-'}{formatGp(projected)} gp)
                 </span>
               {/if}
 
