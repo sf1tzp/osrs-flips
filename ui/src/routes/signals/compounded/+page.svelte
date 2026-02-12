@@ -24,15 +24,30 @@
     itemIcon: string | null;
     instaBuyPrice: number | null;
     instaSellPrice: number | null;
+    targetSellPrice?: number | null;
   } | null>(null);
 
   function openTrade(item: CompoundedItem) {
+    // Derive target sell price from signal metadata:
+    // - Momentum signals (MACD/RSI) carry sma_24h as the mean-reversion target
+    // - Flip signals use high_price as the sell target
+    let targetSellPrice: number | null = null;
+    for (const s of item.signals) {
+      const sma = s.metadata?.sma_24h;
+      if (typeof sma === 'number' && sma > 0) {
+        targetSellPrice = targetSellPrice != null ? Math.max(targetSellPrice, sma) : sma;
+      }
+    }
+    if (targetSellPrice == null) {
+      targetSellPrice = item.highPrice;
+    }
     tradeDialogPrefill = {
       itemId: item.itemId,
       itemName: item.itemName,
       itemIcon: item.itemIcon,
       instaBuyPrice: item.highPrice,
-      instaSellPrice: item.lowPrice
+      instaSellPrice: item.lowPrice,
+      targetSellPrice
     };
     tradeDialogOpen = true;
   }

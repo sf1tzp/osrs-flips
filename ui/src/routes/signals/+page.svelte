@@ -23,15 +23,21 @@
     itemIcon: string | null;
     instaBuyPrice: number | null;
     instaSellPrice: number | null;
+    targetSellPrice?: number | null;
   } | null>(null);
 
   function openSignalTrade(signal: ActiveSignal) {
+    // For flip signals, target sell price is the insta-buy (high) price.
+    // For momentum signals, target is the SMA (mean-reversion target).
+    const sma = signal.metadata?.sma_24h;
+    const targetSellPrice = typeof sma === 'number' ? sma : signal.highPrice;
     tradeDialogPrefill = {
       itemId: signal.itemId,
       itemName: signal.itemName,
       itemIcon: signal.itemIcon,
       instaBuyPrice: signal.highPrice,
-      instaSellPrice: signal.lowPrice
+      instaSellPrice: signal.lowPrice,
+      targetSellPrice
     };
     tradeDialogOpen = true;
   }

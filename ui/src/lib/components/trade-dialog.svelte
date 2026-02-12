@@ -15,6 +15,7 @@
     itemIcon: string | null;
     instaBuyPrice: number | null;
     instaSellPrice: number | null;
+    targetSellPrice?: number | null;
   }
 
   interface Props {
@@ -33,6 +34,7 @@
   let snapshotInstaSell = $state<number | null>(null);
   let quantity = $state('');
   let buyPrice = $state('');
+  let sellPrice = $state('');
   let notes = $state('');
 
   // Reset form when dialog opens
@@ -44,12 +46,14 @@
         snapshotInstaSell = editPlan.snapshotInstaSell;
         quantity = String(editPlan.quantity);
         buyPrice = String(editPlan.buyPrice);
+        sellPrice = editPlan.sellPrice != null ? String(editPlan.sellPrice) : '';
         notes = editPlan.notes;
       } else if (prefill) {
         selectedItem = { id: prefill.itemId, name: prefill.itemName, icon: prefill.itemIcon };
         snapshotInstaBuy = prefill.instaBuyPrice;
         snapshotInstaSell = prefill.instaSellPrice;
         buyPrice = prefill.instaSellPrice != null ? String(prefill.instaSellPrice) : '';
+        sellPrice = prefill.targetSellPrice != null ? String(prefill.targetSellPrice) : '';
         quantity = '';
         notes = '';
       } else {
@@ -57,6 +61,7 @@
         snapshotInstaBuy = null;
         snapshotInstaSell = null;
         buyPrice = '';
+        sellPrice = '';
         quantity = '';
         notes = '';
       }
@@ -64,6 +69,7 @@
   });
 
   let price = $derived(parseNumeric(buyPrice));
+  let targetSell = $derived(parseNumeric(sellPrice));
   let qty = $derived(parseNumeric(quantity));
   let totalCost = $derived(qty * price);
 
@@ -84,7 +90,7 @@
       buyPrice: price,
       status: editPlan ? editPlan.status : 'pending',
       filledAt: editPlan ? editPlan.filledAt : null,
-      sellPrice: editPlan ? editPlan.sellPrice : null,
+      sellPrice: targetSell > 0 ? targetSell : editPlan ? editPlan.sellPrice : null,
       closedAt: editPlan ? editPlan.closedAt : null,
       notes: notes.trim()
     };
@@ -173,6 +179,19 @@
         {#if qty > 0 && price > 0}
           <p class="text-xs text-muted-foreground">
             Total: {totalCost.toLocaleString()} gp
+          </p>
+        {/if}
+      </div>
+
+      <!-- Target sell price -->
+      <div class="grid gap-2">
+        <Label>Target sell price (gp) <span class="text-muted-foreground font-normal">(optional)</span></Label>
+        <Input type="text" inputmode="decimal" placeholder="e.g. 4.2m" bind:value={sellPrice} />
+        {#if qty > 0 && targetSell > 0 && price > 0}
+          {@const tax = Math.min(Math.floor(targetSell * 0.02), 5_000_000)}
+          {@const profitPerUnit = targetSell - tax - price}
+          <p class="text-xs {profitPerUnit > 0 ? 'text-green-500' : profitPerUnit < 0 ? 'text-red-500' : 'text-muted-foreground'}">
+            Projected: {(profitPerUnit * qty).toLocaleString()} gp ({profitPerUnit > 0 ? '+' : ''}{profitPerUnit.toLocaleString()}/ea)
           </p>
         {/if}
       </div>
