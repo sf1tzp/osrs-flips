@@ -42,7 +42,11 @@ const RANGE_INTERVALS: Record<PriceHistoryRange, string> = {
   '6h': '6 hours',
   '24h': '24 hours',
   '7d': '7 days',
-  '30d': '30 days'
+  '30d': '30 days',
+  '3m': '3 months',
+  '6m': '6 months',
+  '1y': '1 year',
+  '5y': '5 years'
 };
 
 export interface PriceHistoryPoint {
