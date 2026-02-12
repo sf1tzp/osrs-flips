@@ -25,6 +25,7 @@
     itemIcon: string | null;
     instaBuyPrice: number | null;
     instaSellPrice: number | null;
+    targetSellPrice?: number | null;
   } | null>(null);
 
   function openQuickTrade(item: DashboardItem) {
@@ -68,6 +69,84 @@
     if (signal.margin == null) return null;
     return Math.round((signal.margin / signal.lowPrice) * 1000) / 10;
   }
+
+  interface CompoundedOpportunity {
+    itemId: number;
+    itemName: string;
+    itemIcon: string | null;
+    signals: ActiveSignal[];
+    compositeScore: number;
+    highPrice: number | null;
+    lowPrice: number | null;
+    margin: number | null;
+    projectedTarget: number | null;
+    buyLimit: number | null;
+  }
+
+  let compoundedOpportunities = $derived.by(() => {
+    const byItem = new Map<number, ActiveSignal[]>();
+    for (const s of data.signals) {
+      let list = byItem.get(s.itemId);
+      if (!list) {
+        list = [];
+        byItem.set(s.itemId, list);
+      }
+      list.push(s);
+    }
+
+    const items: CompoundedOpportunity[] = [];
+    for (const [itemId, signals] of byItem) {
+      if (signals.length < 2) continue;
+      const first = signals[0];
+      const compositeScore = signals.reduce((sum, s) => sum + s.score, 0);
+
+      // Derive projected target from SMA (momentum) or high price (flip)
+      let projectedTarget: number | null = null;
+      for (const s of signals) {
+        const sma = s.metadata?.sma_24h;
+        if (typeof sma === 'number' && sma > 0) {
+          projectedTarget = projectedTarget != null ? Math.max(projectedTarget, sma) : sma;
+        }
+      }
+      if (projectedTarget == null) projectedTarget = first.highPrice;
+
+      // Compute projected margin from target
+      let margin: number | null = null;
+      const buyPrice = first.lowPrice;
+      if (projectedTarget != null && buyPrice != null && buyPrice > 0) {
+        const tax = Math.min(Math.floor(projectedTarget * 0.02), 5_000_000);
+        margin = projectedTarget - buyPrice - tax;
+      }
+
+      const withMargin = signals.find((s) => s.margin != null);
+      items.push({
+        itemId,
+        itemName: first.itemName,
+        itemIcon: first.itemIcon,
+        signals: signals.toSorted((a, b) => b.score - a.score),
+        compositeScore: Math.round(compositeScore * 1000) / 1000,
+        highPrice: first.highPrice,
+        lowPrice: first.lowPrice,
+        margin: margin ?? withMargin?.margin ?? null,
+        projectedTarget,
+        buyLimit: first.buyLimit
+      });
+    }
+
+    return items.toSorted((a, b) => {
+      // Items with margin first, then by composite score
+      const aHasMargin = a.margin != null && a.margin > 0 ? 1 : 0;
+      const bHasMargin = b.margin != null && b.margin > 0 ? 1 : 0;
+      if (aHasMargin !== bHasMargin) return bHasMargin - aHasMargin;
+      return b.compositeScore - a.compositeScore;
+    });
+  });
+
+  // Individual signals that aren't part of compounded items
+  let soloSignals = $derived.by(() => {
+    const compoundedIds = new Set(compoundedOpportunities.map((c) => c.itemId));
+    return data.signals.filter((s) => !compoundedIds.has(s.itemId));
+  });
 
   type SortKey = keyof DashboardItem;
 
@@ -193,14 +272,84 @@
 </script>
 
 <div class="mx-auto max-w-7xl p-4 sm:p-6">
-  {#if data.signals.length > 0}
+  {#if compoundedOpportunities.length > 0 || soloSignals.length > 0}
     <div class="mb-6">
       <h2 class="mb-3 flex items-center gap-2 text-lg font-semibold">
         <TrendingUp class="size-5 text-green-500" />
         Flip Opportunities
       </h2>
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {#each data.signals.slice(0, 6) as signal}
+        <!-- Compounded signals first -->
+        {#each compoundedOpportunities.slice(0, 6) as item}
+          {@const mPct =
+            item.margin != null && item.lowPrice != null && item.lowPrice > 0
+              ? Math.round((item.margin / item.lowPrice) * 1000) / 10
+              : null}
+          <div
+            class="flex flex-col gap-2 rounded-lg border border-primary/20 bg-primary/[0.02] p-4 transition-colors hover:bg-muted/50"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                {#if item.itemIcon}
+                  <img src={item.itemIcon} alt="" class="size-5 object-contain" />
+                {/if}
+                <a href="/items/{item.itemId}" class="text-sm font-medium hover:underline">
+                  {item.itemName}
+                </a>
+              </div>
+              <div class="flex flex-wrap gap-1">
+                {#each item.signals as signal}
+                  <a href={faqAnchor(signal.signalType)}>
+                    <Badge variant="secondary" class="text-[10px] hover:bg-secondary/80">
+                      {signalLabel(signal.signalType)}
+                    </Badge>
+                  </a>
+                {/each}
+              </div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Buy: {item.lowPrice != null ? item.lowPrice.toLocaleString() : '—'}</span>
+              <span
+                >Target: {item.projectedTarget != null
+                  ? item.projectedTarget.toLocaleString()
+                  : '—'}</span
+              >
+              <span
+                class="font-medium {item.margin != null && item.margin > 0
+                  ? 'text-green-500'
+                  : item.margin != null && item.margin < 0
+                    ? 'text-red-500'
+                    : ''}"
+              >
+                {item.margin != null ? item.margin.toLocaleString() : '—'}
+                {#if mPct != null}({mPct}%){/if}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="mt-1 inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              onclick={() => {
+                const sma = item.signals
+                  .map((s) => s.metadata?.sma_24h)
+                  .find((v): v is number => typeof v === 'number');
+                tradeDialogPrefill = {
+                  itemId: item.itemId,
+                  itemName: item.itemName,
+                  itemIcon: item.itemIcon,
+                  instaBuyPrice: item.highPrice,
+                  instaSellPrice: item.lowPrice,
+                  targetSellPrice: sma ?? item.highPrice
+                };
+                tradeDialogOpen = true;
+              }}
+            >
+              <ArrowRightLeft class="size-3.5" />
+              Flip
+            </button>
+          </div>
+        {/each}
+        <!-- Solo signals fill remaining slots -->
+        {#each soloSignals.slice(0, Math.max(0, 6 - compoundedOpportunities.length)) as signal}
           {@const mPct = marginPctFromSignal(signal)}
           <div
             class="flex flex-col gap-2 rounded-lg border p-4 transition-colors hover:bg-muted/50"
@@ -222,7 +371,8 @@
             </div>
             <div class="flex items-center justify-between text-xs text-muted-foreground">
               <span>Buy: {signal.lowPrice != null ? signal.lowPrice.toLocaleString() : '—'}</span>
-              <span>Sell: {signal.highPrice != null ? signal.highPrice.toLocaleString() : '—'}</span
+              <span
+                >Sell: {signal.highPrice != null ? signal.highPrice.toLocaleString() : '—'}</span
               >
               <span
                 class="font-medium {signal.margin != null && signal.margin > 0
