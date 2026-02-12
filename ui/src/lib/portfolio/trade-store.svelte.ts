@@ -125,7 +125,12 @@ class TradeStore {
     if (!browser) return;
     const db = await getDb();
     const all = await db.getAll(STORE_NAME);
-    this.trades = (all as TradePlan[]).sort((a, b) => b.createdAt - a.createdAt);
+    this.trades = (all as TradePlan[]).sort((a, b) => {
+      const aClosed = a.status === 'closed' ? 1 : 0;
+      const bClosed = b.status === 'closed' ? 1 : 0;
+      if (aClosed !== bClosed) return aClosed - bClosed;
+      return b.createdAt - a.createdAt;
+    });
   }
 }
 
