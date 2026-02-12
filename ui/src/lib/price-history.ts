@@ -4,12 +4,12 @@ export type PriceHistoryRange = (typeof PRICE_HISTORY_RANGES)[number];
 export const PRICE_HISTORY_SOURCES = ['observations', '5m', '1h', '24h'] as const;
 export type PriceHistorySource = (typeof PRICE_HISTORY_SOURCES)[number];
 
-/** [fine, smooth] source options per range */
-export const SOURCE_OPTIONS: Record<PriceHistoryRange, [PriceHistorySource, PriceHistorySource]> = {
+/** Source options per range, finest to smoothest */
+export const SOURCE_OPTIONS: Record<PriceHistoryRange, PriceHistorySource[]> = {
   '1h': ['observations', '5m'],
   '6h': ['observations', '5m'],
-  '24h': ['5m', '1h'],
-  '7d': ['5m', '1h'],
+  '24h': ['observations', '5m', '1h'],
+  '7d': ['observations', '5m', '1h'],
   '30d': ['1h', '24h']
 };
 
