@@ -100,12 +100,20 @@
   let latestHigh = $derived(priceHistory.findLast((p) => p.highPrice != null)?.highPrice ?? 0);
   let latestLow = $derived(priceHistory.findLast((p) => p.lowPrice != null)?.lowPrice ?? 0);
 
+  let targetSellPrice = $derived.by(() => {
+    const hasMomentum = signals.some((s) => isMomentumSignal(s.signalType));
+    if (hasMomentum && sma24h != null) return sma24h;
+    if (signals.length > 0) return latestHigh;
+    return null;
+  });
+
   let tradeDialogPrefill = $derived({
     itemId: item.itemId,
     itemName: item.name,
     itemIcon: item.icon,
     instaBuyPrice: latestHigh,
-    instaSellPrice: latestLow
+    instaSellPrice: latestLow,
+    targetSellPrice
   });
 
   function openFlip() {
