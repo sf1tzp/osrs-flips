@@ -178,12 +178,8 @@
   {:else}
     <!-- Summary cards -->
     <div class="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
-      <!-- <div class="rounded-lg border p-4">
-        <p class="text-xs text-muted-foreground">Total Value</p>
-        <p class="text-xl font-bold tabular-nums">{formatGp(summary.totalValue)} gp</p>
-      </div> -->
       <div class="rounded-lg border p-4">
-        <p class="text-xs text-muted-foreground">Total Cost</p>
+        <p class="text-xs text-muted-foreground">Active Trade Cost</p>
         <p class="text-xl font-bold tabular-nums">{formatGp(summary.totalCost)} gp</p>
       </div>
       <div class="rounded-lg border p-4">
@@ -197,6 +193,7 @@
           {/if}
         </p>
       </div>
+      <div class=""></div>
       <div class="rounded-lg border p-4">
         <p class="text-xs text-muted-foreground">Realized P&L</p>
         <p class="text-xl font-bold tabular-nums {pnlColor(summary.realizedPnl)}">

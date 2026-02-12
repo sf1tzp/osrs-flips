@@ -359,19 +359,8 @@
             </span>
             {@const tax = calcGeTax(trade.sellPrice, item.itemId)}
             {@const projected = (trade.sellPrice - tax - trade.buyPrice) * trade.quantity}
-            <span class="font-mono tabular-nums text-xs text-blue-500">
-              ({projected >= 0 ? '+' : ''}{projected.toLocaleString()} gp projected)
-            </span>
-          {/if}
-          {#if isActive && latestHigh > 0}
-            {@const tax = calcGeTax(latestHigh, item.itemId)}
-            {@const pnl = (latestHigh - tax - trade.buyPrice) * trade.quantity}
-            <span
-              class="font-mono tabular-nums text-xs {pnl >= 0
-                ? 'text-green-500'
-                : 'text-red-500'}"
-            >
-              ({pnl >= 0 ? '+' : ''}{pnl.toLocaleString()} gp)
+            <span class="font-mono italic tabular-nums text-xs text-blue-500">
+              ({projected >= 0 ? '+' : ''}{projected.toLocaleString()} gp)
             </span>
           {/if}
         </div>
