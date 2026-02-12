@@ -435,6 +435,12 @@
                 <span class="text-sm font-medium {pnlColor(pnl)}">
                   {pnl >= 0 ? '+' : ''}{formatGp(pnl)} gp
                 </span>
+              {:else if plan.sellPrice != null && plan.sellPrice > 0}
+                {@const tax = calcGeTax(plan.sellPrice, plan.itemId)}
+                {@const projected = (plan.sellPrice - tax - plan.buyPrice) * plan.quantity}
+                <span class="text-sm font-medium text-blue-500">
+                  {projected >= 0 ? '+' : ''}{formatGp(projected)} gp projected
+                </span>
               {/if}
 
               <!-- Spacer + actions -->

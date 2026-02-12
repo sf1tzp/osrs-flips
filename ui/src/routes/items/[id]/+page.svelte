@@ -319,6 +319,11 @@
             <span class="font-mono tabular-nums text-muted-foreground">
               target {trade.sellPrice.toLocaleString()} gp
             </span>
+            {@const tax = calcGeTax(trade.sellPrice, item.itemId)}
+            {@const projected = (trade.sellPrice - tax - trade.buyPrice) * trade.quantity}
+            <span class="font-mono tabular-nums text-xs text-blue-500">
+              ({projected >= 0 ? '+' : ''}{projected.toLocaleString()} gp projected)
+            </span>
           {/if}
           {#if isActive && latestHigh > 0}
             {@const tax = calcGeTax(latestHigh, item.itemId)}
