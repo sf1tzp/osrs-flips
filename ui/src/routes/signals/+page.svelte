@@ -7,6 +7,7 @@
   import TradeDialog from '$lib/components/trade-dialog.svelte';
   import ItemRowDetail from '$lib/components/item-row-detail.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
+  import { signalFilters } from '$lib/signal-filters.svelte';
 
   let { data } = $props();
 
@@ -103,7 +104,7 @@
   }
 
   let sorted = $derived.by(() => {
-    return data.flipSignals.toSorted((a, b) => {
+    return data.flipSignals.filter((s) => signalFilters.matchesSignal(s)).toSorted((a, b) => {
       const av = getSortValue(a, sortKey);
       const bv = getSortValue(b, sortKey);
       if (av == null && bv == null) return 0;

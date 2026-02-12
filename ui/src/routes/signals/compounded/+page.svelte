@@ -8,6 +8,7 @@
   import ItemRowDetail from '$lib/components/item-row-detail.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
   import type { CompoundedItem } from '../+layout.server';
+  import { signalFilters } from '$lib/signal-filters.svelte';
 
   let { data } = $props();
 
@@ -96,7 +97,7 @@
   }
 
   let sorted = $derived.by(() => {
-    return (data.compoundedItems as CompoundedItem[]).toSorted((a, b) => {
+    return (data.compoundedItems as CompoundedItem[]).filter((item) => signalFilters.matchesItemSignals(item.signals)).toSorted((a, b) => {
       const av = getSortValue(a, sortKey);
       const bv = getSortValue(b, sortKey);
       if (av == null && bv == null) return 0;

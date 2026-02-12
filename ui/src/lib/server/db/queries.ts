@@ -245,6 +245,7 @@ export interface ActiveSignal {
   lowPrice: number | null;
   margin: number | null;
   buyLimit: number | null;
+  volume24h: number | null;
   createdAt: string;
 }
 
@@ -265,9 +266,16 @@ export async function getSignalsForItem(itemId: number): Promise<ActiveSignal[]>
              - LEAST(FLOOR((s.metadata->>'high_price')::int * 0.02), 5000000)
       END AS margin,
       i.buy_limit,
+      v.total_volume AS volume_24h,
       s.created_at
     FROM signals s
     JOIN items i ON s.item_id = i.item_id
+    LEFT JOIN (
+      SELECT item_id, COALESCE(SUM(high_price_volume), 0) + COALESCE(SUM(low_price_volume), 0) AS total_volume
+      FROM price_buckets_1h
+      WHERE bucket_start >= NOW() - INTERVAL '24 hours'
+      GROUP BY item_id
+    ) v ON v.item_id = s.item_id
     WHERE s.expires_at > NOW()
       AND s.item_id = ${itemId}
     ORDER BY s.score DESC
@@ -284,6 +292,7 @@ export async function getSignalsForItem(itemId: number): Promise<ActiveSignal[]>
     lowPrice: r.low_price as number | null,
     margin: r.margin != null ? Number(r.margin) : null,
     buyLimit: r.buy_limit as number | null,
+    volume24h: r.volume_24h != null ? Number(r.volume_24h) : null,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at)
   }));
 }
@@ -305,9 +314,16 @@ export async function getActiveSignals(): Promise<ActiveSignal[]> {
              - LEAST(FLOOR((s.metadata->>'high_price')::int * 0.02), 5000000)
       END AS margin,
       i.buy_limit,
+      v.total_volume AS volume_24h,
       s.created_at
     FROM signals s
     JOIN items i ON s.item_id = i.item_id
+    LEFT JOIN (
+      SELECT item_id, COALESCE(SUM(high_price_volume), 0) + COALESCE(SUM(low_price_volume), 0) AS total_volume
+      FROM price_buckets_1h
+      WHERE bucket_start >= NOW() - INTERVAL '24 hours'
+      GROUP BY item_id
+    ) v ON v.item_id = s.item_id
     WHERE s.expires_at > NOW()
     ORDER BY s.score DESC
   `;
@@ -323,6 +339,7 @@ export async function getActiveSignals(): Promise<ActiveSignal[]> {
     lowPrice: r.low_price as number | null,
     margin: r.margin != null ? Number(r.margin) : null,
     buyLimit: r.buy_limit as number | null,
+    volume24h: r.volume_24h != null ? Number(r.volume_24h) : null,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at)
   }));
 }
