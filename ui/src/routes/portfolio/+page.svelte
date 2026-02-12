@@ -63,6 +63,7 @@
 
   // Inline editing state
   let editingQty = $state<Record<string, string>>({});
+  let editingBuyPrice = $state<Record<string, string>>({});
   let editingSellPrice = $state<Record<string, string>>({});
 
   async function toggleFilled(plan: TradePlan) {
@@ -85,6 +86,16 @@
     const price = plan.sellPrice || priceMap[plan.itemId]?.highPrice || 0;
     if (price <= 0) return;
     await tradeStore.closePlan(plan.id, price);
+  }
+
+  async function commitBuyPrice(plan: TradePlan) {
+    const raw = editingBuyPrice[plan.id];
+    if (raw == null) return;
+    const price = parseNumeric(raw);
+    if (price > 0 && price !== plan.buyPrice) {
+      await tradeStore.updateBuyPrice(plan.id, price);
+    }
+    delete editingBuyPrice[plan.id];
   }
 
   async function commitSellPrice(plan: TradePlan) {
@@ -313,9 +324,40 @@
                   {plan.quantity.toLocaleString()}
                 </button>
               {/if}
-              <span class="text-muted-foreground text-sm"
-                >@ {plan.buyPrice.toLocaleString()} gp</span
-              >
+              <span class="text-muted-foreground text-sm">@</span>
+              {#if editingBuyPrice[plan.id] != null}
+                <Input
+                  type="text"
+                  inputmode="decimal"
+                  class="h-6 w-20 text-xs tabular-nums"
+                  value={editingBuyPrice[plan.id]}
+                  oninput={(e) => {
+                    editingBuyPrice[plan.id] = e.currentTarget.value;
+                  }}
+                  onblur={() => commitBuyPrice(plan)}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitBuyPrice(plan);
+                    }
+                    if (e.key === 'Escape') {
+                      delete editingBuyPrice[plan.id];
+                    }
+                  }}
+                />
+              {:else}
+                <button
+                  type="button"
+                  class="text-sm tabular-nums {!isClosed ? 'cursor-pointer hover:underline' : ''}"
+                  disabled={isClosed}
+                  onclick={() => {
+                    if (!isClosed) editingBuyPrice[plan.id] = String(plan.buyPrice);
+                  }}
+                  title={isClosed ? '' : 'Click to edit buy price'}
+                >
+                  {plan.buyPrice.toLocaleString()} gp
+                </button>
+              {/if}
 
               <!-- Filled checkbox -->
               <label
