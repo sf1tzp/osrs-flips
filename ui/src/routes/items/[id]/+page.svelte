@@ -255,6 +255,44 @@
     {#if item.examine}
       <p class="text-muted-foreground mt-1">{item.examine}</p>
     {/if}
+
+    <!-- Latest prices -->
+    {#if latestHigh > 0 || latestLow > 0}
+      {@const margin =
+        latestHigh > 0 && latestLow > 0
+          ? latestHigh - latestLow - Math.min(Math.floor(latestHigh * 0.02), 5_000_000)
+          : null}
+      <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+        <div>
+          <span class="text-muted-foreground">Insta-buy</span>
+          <span class="ml-1 font-mono tabular-nums font-medium">{formatGp(latestHigh || null)}</span>
+        </div>
+        <div>
+          <span class="text-muted-foreground">Insta-sell</span>
+          <span class="ml-1 font-mono tabular-nums font-medium">{formatGp(latestLow || null)}</span>
+        </div>
+        {#if margin != null}
+          <div>
+            <span class="text-muted-foreground">Margin</span>
+            <span
+              class="ml-1 font-mono tabular-nums font-medium {margin > 0
+                ? 'text-green-500'
+                : margin < 0
+                  ? 'text-red-500'
+                  : ''}">{margin.toLocaleString()} gp</span
+            >
+          </div>
+        {/if}
+        {#if item.buyLimit != null}
+          <div>
+            <span class="text-muted-foreground">Buy limit</span>
+            <span class="ml-1 font-mono tabular-nums font-medium"
+              >{item.buyLimit.toLocaleString()}</span
+            >
+          </div>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <!-- Signal Strip -->
