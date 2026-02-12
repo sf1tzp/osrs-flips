@@ -35,3 +35,16 @@ export const SOURCE_LABELS: Record<PriceHistorySource, string> = {
   '1h': '1hr',
   '24h': '24hr'
 };
+
+/** Wiki API timestep per range (for on-demand volume fetching) */
+export const VOLUME_TIMESTEPS: Record<PriceHistoryRange, '5m' | '1h' | '6h' | '24h'> = {
+  '1h': '5m',
+  '6h': '5m',
+  '24h': '5m',
+  '7d': '1h',
+  '30d': '6h',
+  '3m': '6h',
+  '6m': '24h',
+  '1y': '24h',
+  '5y': '24h'
+};

@@ -6,12 +6,14 @@
   import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
-  import { Area, Axis, Chart, Grid, Highlight, Spline, Svg, Tooltip } from 'layerchart';
+  import { Area, Axis, Bars, Chart, Grid, Highlight, Spline, Svg, Tooltip } from 'layerchart';
   import { scaleTime, scaleLinear } from 'd3-scale';
+  import { utcMinute, utcHour, utcDay } from 'd3-time';
   import {
     SOURCE_OPTIONS,
     SOURCE_LABELS,
     DEFAULT_SOURCES,
+    VOLUME_TIMESTEPS,
     type PriceHistoryRange,
     type PriceHistorySource
   } from '$lib/price-history';
@@ -133,7 +135,76 @@
   ];
 
   let sourceOptions = $derived(SOURCE_OPTIONS[range]);
-  let hasVolume = $derived(source !== 'observations');
+  let hasDbVolume = $derived(source !== 'observations');
+
+  // Wiki volume fetching for observations source
+  interface WikiVolumePoint {
+    time: Date;
+    highVolume: number | null;
+    lowVolume: number | null;
+  }
+
+  let wikiVolume = $state<WikiVolumePoint[]>([]);
+  let volumeLoading = $state(false);
+
+  const TIMESTEP_INTERVALS = {
+    '5m': utcMinute.every(5)!,
+    '1h': utcHour.every(1)!,
+    '6h': utcHour.every(6)!,
+    '24h': utcDay.every(1)!
+  };
+
+  let activeTimestep = $derived(VOLUME_TIMESTEPS[range]);
+  let volumeInterval = $derived(TIMESTEP_INTERVALS[activeTimestep]);
+
+  $effect(() => {
+    if (hasDbVolume) {
+      wikiVolume = [];
+      return;
+    }
+
+    const timestep = VOLUME_TIMESTEPS[range];
+    const currentItemId = item.itemId;
+    const controller = new AbortController();
+    volumeLoading = true;
+
+    fetch(`/api/items/${currentItemId}/timeseries?timestep=${timestep}`, {
+      signal: controller.signal
+    })
+      .then((r) => r.json())
+      .then((body) => {
+        // Filter to visible time window
+        const now = new Date();
+        const rangeMs: Record<PriceHistoryRange, number> = {
+          '1h': 3_600_000,
+          '6h': 21_600_000,
+          '24h': 86_400_000,
+          '7d': 604_800_000,
+          '30d': 2_592_000_000,
+          '3m': 7_776_000_000,
+          '6m': 15_552_000_000,
+          '1y': 31_536_000_000,
+          '5y': 157_680_000_000
+        };
+        const cutoff = new Date(now.getTime() - rangeMs[range]);
+
+        wikiVolume = (body.data ?? [])
+          .map((d: { time: string; highVolume: number | null; lowVolume: number | null }) => ({
+            time: new Date(d.time),
+            highVolume: d.highVolume,
+            lowVolume: d.lowVolume
+          }))
+          .filter((d: WikiVolumePoint) => d.time >= cutoff);
+        volumeLoading = false;
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          volumeLoading = false;
+        }
+      });
+
+    return () => controller.abort();
+  });
 
   function navUrl(r: PriceHistoryRange, s?: PriceHistorySource) {
     const effectiveSource = s ?? DEFAULT_SOURCES[r];
@@ -155,6 +226,13 @@
       time: typeof p.time === 'string' ? new Date(p.time) : p.time
     }))
   );
+
+  let volumeData = $derived(
+    hasDbVolume
+      ? chartData.filter((d) => d.highVolume != null || d.lowVolume != null)
+      : wikiVolume
+  );
+  let hasVolume = $derived(volumeData.length > 0 || volumeLoading);
 
   let priceData = $derived(chartData.filter((d) => d.highPrice != null || d.lowPrice != null));
 
@@ -518,31 +596,43 @@
 
     <!-- Volume Chart -->
     {#if hasVolume}
-      <ChartContainer config={volumeConfig} class="mt-2 h-[100px] w-full">
-        <Chart
-          data={chartData}
-          x="time"
-          xScale={volumeTimeScale}
-          yScale={volumeYScale}
-          y={(d) => d.highVolume ?? d.lowVolume ?? 0}
-          yNice
-          padding={volumePadding}
-        >
-          <Svg>
-            <Area
-              y="highVolume"
-              defined={(d: ChartPoint) => d.highVolume != null}
-              class="fill-[var(--color-highVolume)]"
-            />
-            <Area
-              y="lowVolume"
-              defined={(d: ChartPoint) => d.lowVolume != null}
-              class="fill-[var(--color-lowVolume)]"
-            />
-            <Axis placement="bottom" format={axisFormat} tickSpacing={100} />
-          </Svg>
-        </Chart>
-      </ChartContainer>
+      {#if volumeLoading && volumeData.length === 0}
+        <div class="mt-2 flex h-[100px] items-center justify-center text-sm text-muted-foreground">
+          Loading volume...
+        </div>
+      {:else if volumeData.length > 0}
+        <ChartContainer config={volumeConfig} class="mt-2 h-[100px] w-full">
+          <Chart
+            data={volumeData}
+            x="time"
+            xScale={volumeTimeScale}
+            yScale={volumeYScale}
+            y={(d) => d.highVolume ?? d.lowVolume ?? 0}
+            yNice
+            padding={volumePadding}
+            xInterval={hasDbVolume ? undefined : volumeInterval}
+          >
+            <Svg>
+              {#if hasDbVolume}
+                <Area
+                  y="highVolume"
+                  defined={(d: ChartPoint) => d.highVolume != null}
+                  class="fill-[var(--color-highVolume)]"
+                />
+                <Area
+                  y="lowVolume"
+                  defined={(d: ChartPoint) => d.lowVolume != null}
+                  class="fill-[var(--color-lowVolume)]"
+                />
+              {:else}
+                <Bars y="highVolume" class="fill-[var(--color-highVolume)]" />
+                <Bars y="lowVolume" class="fill-[var(--color-lowVolume)]" />
+              {/if}
+              <Axis placement="bottom" format={axisFormat} tickSpacing={100} />
+            </Svg>
+          </Chart>
+        </ChartContainer>
+      {/if}
     {/if}
   {/if}
 
