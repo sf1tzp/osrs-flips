@@ -172,20 +172,19 @@ func (sc *SignalComputer) compute() {
 	}
 	signals = append(signals, inversionSignals...)
 
-	// 4. Compute MACD crossover signals
-	macdSignals, err := sc.computeMACD(ctx)
+	// 4. Fetch price series once for both MACD and RSI (RSI needs 15, MACD needs 35)
+	priceSeries, err := sc.repo.GetPriceSeries(ctx, 15)
 	if err != nil {
-		sc.logger.WithComponent("signal_computer").WithError(err).Error("failed to compute MACD signals")
+		sc.logger.WithComponent("signal_computer").WithError(err).Error("failed to get price series")
 		return
 	}
+
+	// 4a. Compute MACD crossover signals
+	macdSignals := sc.computeMACD(priceSeries)
 	signals = append(signals, macdSignals...)
 
-	// 5. Compute RSI oversold signals
-	rsiSignals, err := sc.computeRSI(ctx)
-	if err != nil {
-		sc.logger.WithComponent("signal_computer").WithError(err).Error("failed to compute RSI signals")
-		return
-	}
+	// 4b. Compute RSI oversold signals
+	rsiSignals := sc.computeRSI(priceSeries)
 	signals = append(signals, rsiSignals...)
 
 	// 5a. Manage volume polling for compounded items (non-fatal)
@@ -383,12 +382,7 @@ func emaFloat(values []float64, period int) []float64 {
 	return result
 }
 
-func (sc *SignalComputer) computeMACD(ctx context.Context) ([]Signal, error) {
-	series, err := sc.repo.GetMACDCandidates(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (sc *SignalComputer) computeMACD(series []ItemPriceSeries) []Signal {
 	expiresAt := time.Now().Add(sc.config.TTL)
 	var signals []Signal
 
@@ -460,15 +454,10 @@ func (sc *SignalComputer) computeMACD(ctx context.Context) ([]Signal, error) {
 		})
 	}
 
-	return signals, nil
+	return signals
 }
 
-func (sc *SignalComputer) computeRSI(ctx context.Context) ([]Signal, error) {
-	series, err := sc.repo.GetRSICandidates(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (sc *SignalComputer) computeRSI(series []ItemPriceSeries) []Signal {
 	expiresAt := time.Now().Add(sc.config.TTL)
 	var signals []Signal
 
@@ -563,5 +552,5 @@ func (sc *SignalComputer) computeRSI(ctx context.Context) ([]Signal, error) {
 		})
 	}
 
-	return signals, nil
+	return signals
 }

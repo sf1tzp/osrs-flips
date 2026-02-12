@@ -47,6 +47,13 @@ services:
       - -enable-signals
       # - -sync-min-item-threshold=5000
 
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: collector
+        fluentd-async: "true"
+
     # Health check
     healthcheck:
       test: ["CMD", "pgrep", "osrs-flips-collector"]

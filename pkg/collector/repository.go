@@ -200,35 +200,47 @@ func (r *Repository) InsertPriceBuckets(ctx context.Context, buckets []PriceBuck
 }
 
 // insertBucketsToTable inserts buckets to a specific table.
+// Processes in chunks of 1000 to avoid unbounded server-side batch buffering.
 func (r *Repository) insertBucketsToTable(ctx context.Context, tableName string, buckets []PriceBucket) (int64, error) {
-	batch := &pgx.Batch{}
-	for _, b := range buckets {
-		// Note: table name is from our controlled bucketTableName(), not user input
-		query := fmt.Sprintf(`
-			INSERT INTO %s (item_id, bucket_start, avg_high_price, high_price_volume, avg_low_price, low_price_volume, source)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (item_id, bucket_start) DO UPDATE SET
-				avg_high_price = EXCLUDED.avg_high_price,
-				high_price_volume = EXCLUDED.high_price_volume,
-				avg_low_price = EXCLUDED.avg_low_price,
-				low_price_volume = EXCLUDED.low_price_volume,
-				source = EXCLUDED.source,
-				ingested_at = NOW()
-			WHERE %s.source != 'api' OR EXCLUDED.source = 'api'
-		`, tableName, tableName)
-		batch.Queue(query, b.ItemID, b.BucketStart, b.AvgHighPrice, b.HighPriceVolume, b.AvgLowPrice, b.LowPriceVolume, b.Source)
-	}
-
-	br := r.pool.SendBatch(ctx, batch)
-	defer br.Close()
+	const chunkSize = 1000
+	// Note: table name is from our controlled bucketTableName(), not user input
+	query := fmt.Sprintf(`
+		INSERT INTO %s (item_id, bucket_start, avg_high_price, high_price_volume, avg_low_price, low_price_volume, source)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (item_id, bucket_start) DO UPDATE SET
+			avg_high_price = EXCLUDED.avg_high_price,
+			high_price_volume = EXCLUDED.high_price_volume,
+			avg_low_price = EXCLUDED.avg_low_price,
+			low_price_volume = EXCLUDED.low_price_volume,
+			source = EXCLUDED.source,
+			ingested_at = NOW()
+		WHERE %s.source != 'api' OR EXCLUDED.source = 'api'
+	`, tableName, tableName)
 
 	var inserted int64
-	for range buckets {
-		ct, err := br.Exec()
-		if err != nil {
-			return inserted, fmt.Errorf("batch exec: %w", err)
+
+	for i := 0; i < len(buckets); i += chunkSize {
+		end := i + chunkSize
+		if end > len(buckets) {
+			end = len(buckets)
 		}
-		inserted += ct.RowsAffected()
+		chunk := buckets[i:end]
+
+		batch := &pgx.Batch{}
+		for _, b := range chunk {
+			batch.Queue(query, b.ItemID, b.BucketStart, b.AvgHighPrice, b.HighPriceVolume, b.AvgLowPrice, b.LowPriceVolume, b.Source)
+		}
+
+		br := r.pool.SendBatch(ctx, batch)
+		for range chunk {
+			ct, err := br.Exec()
+			if err != nil {
+				br.Close()
+				return inserted, fmt.Errorf("batch exec: %w", err)
+			}
+			inserted += ct.RowsAffected()
+		}
+		br.Close()
 	}
 
 	return inserted, nil
@@ -513,8 +525,9 @@ func bucketDuration(bucketSize string) time.Duration {
 // never been fetched successfully. Results are ordered newest-first so recent gaps
 // (most likely to have API data) get priority.
 //
-// Approach: generate expected timestamps in Go, query the DB for what we already
-// have (bucket data + no-data markers), return the difference.
+// Approach: generate candidate timestamps in Go, send them to the DB in chunks
+// using WHERE bucket_start = ANY($1) to check which exist. This avoids the
+// full-table DISTINCT that caused OOM on millions of rows.
 func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize string, retention time.Duration, limit int) ([]time.Time, error) {
 	tableName := bucketTableName(bucketSize)
 	interval := bucketDuration(bucketSize)
@@ -535,39 +548,80 @@ func (r *Repository) GetMissingBucketTimestamps(ctx context.Context, bucketSize 
 		aligned = aligned.Add(interval)
 	}
 
-	// Query timestamps we can skip: already have data OR marked as no-data.
-	// Note: tableName is from controlled bucketTableName(), not user input.
-	query := fmt.Sprintf(`
-		SELECT DISTINCT bucket_start FROM %s WHERE bucket_start >= $1
-		UNION ALL
-		SELECT bucket_start FROM sync_no_data WHERE bucket_size = $2 AND bucket_start >= $1
-	`, tableName)
-
-	rows, err := r.pool.Query(ctx, query, windowStart, bucketSize)
-	if err != nil {
-		return nil, fmt.Errorf("query existing timestamps: %w", err)
-	}
-	defer rows.Close()
-
-	skip := make(map[time.Time]bool)
-	for rows.Next() {
-		var ts time.Time
-		if err := rows.Scan(&ts); err != nil {
-			return nil, fmt.Errorf("scan timestamp: %w", err)
-		}
-		skip[ts.UTC()] = true
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate timestamps: %w", err)
-	}
-
-	// Walk backwards from windowEnd to find missing timestamps (newest first)
+	// Generate all candidate timestamps (newest first)
 	end := windowEnd.Truncate(interval)
+	var candidates []time.Time
+	for ts := end; !ts.Before(aligned); ts = ts.Add(-interval) {
+		candidates = append(candidates, ts)
+	}
 
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	// Query existing timestamps in chunks of 1000 to avoid large parameter lists
+	const chunkSize = 1000
+	skip := make(map[time.Time]bool, len(candidates))
+
+	for i := 0; i < len(candidates); i += chunkSize {
+		end := i + chunkSize
+		if end > len(candidates) {
+			end = len(candidates)
+		}
+		chunk := candidates[i:end]
+
+		// Check bucket table for existing data
+		query := fmt.Sprintf(
+			`SELECT DISTINCT bucket_start FROM %s WHERE bucket_start = ANY($1)`,
+			tableName,
+		)
+		rows, err := r.pool.Query(ctx, query, chunk)
+		if err != nil {
+			return nil, fmt.Errorf("query existing bucket timestamps: %w", err)
+		}
+		for rows.Next() {
+			var ts time.Time
+			if err := rows.Scan(&ts); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("scan bucket timestamp: %w", err)
+			}
+			skip[ts.UTC()] = true
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iterate bucket timestamps: %w", err)
+		}
+
+		// Check no-data markers
+		rows, err = r.pool.Query(ctx,
+			`SELECT bucket_start FROM sync_no_data WHERE bucket_size = $1 AND bucket_start = ANY($2)`,
+			bucketSize, chunk,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("query no-data timestamps: %w", err)
+		}
+		for rows.Next() {
+			var ts time.Time
+			if err := rows.Scan(&ts); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("scan no-data timestamp: %w", err)
+			}
+			skip[ts.UTC()] = true
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iterate no-data timestamps: %w", err)
+		}
+	}
+
+	// Filter candidates to only missing ones (already in newest-first order)
 	var missing []time.Time
-	for ts := end; !ts.Before(aligned) && len(missing) < limit; ts = ts.Add(-interval) {
+	for _, ts := range candidates {
 		if !skip[ts] {
 			missing = append(missing, ts)
+			if len(missing) >= limit {
+				break
+			}
 		}
 	}
 
@@ -911,14 +965,10 @@ func (r *Repository) getPriceSeries(ctx context.Context, minBuckets int) ([]Item
 	return result, rows.Err()
 }
 
-// GetMACDCandidates returns items with enough 1h price data for MACD computation.
-func (r *Repository) GetMACDCandidates(ctx context.Context) ([]ItemPriceSeries, error) {
-	return r.getPriceSeries(ctx, 35) // 26 slow EMA + 9 signal line
-}
-
-// GetRSICandidates returns items with enough 1h price data for RSI computation.
-func (r *Repository) GetRSICandidates(ctx context.Context) ([]ItemPriceSeries, error) {
-	return r.getPriceSeries(ctx, 15) // 14 periods + 1 for first gain/loss
+// GetPriceSeries returns items with at least minBuckets consecutive 1h buckets
+// of non-null avg_low_price data. Public wrapper around getPriceSeries.
+func (r *Repository) GetPriceSeries(ctx context.Context, minBuckets int) ([]ItemPriceSeries, error) {
+	return r.getPriceSeries(ctx, minBuckets)
 }
 
 // GetSpreadWideningCandidates returns items whose current spread exceeds 1.5x the
@@ -1036,39 +1086,51 @@ func (r *Repository) GetInversionCandidates(ctx context.Context) ([]InversionCan
 }
 
 // UpsertSignals batch upserts signals using ON CONFLICT on (item_id, signal_type).
+// Processes in chunks of 500 to avoid unbounded server-side buffering.
 func (r *Repository) UpsertSignals(ctx context.Context, signals []Signal) (int64, error) {
 	if len(signals) == 0 {
 		return 0, nil
 	}
 
-	batch := &pgx.Batch{}
-	for _, s := range signals {
-		metaJSON, err := json.Marshal(s.Metadata)
-		if err != nil {
-			return 0, fmt.Errorf("marshal signal metadata: %w", err)
-		}
-		batch.Queue(`
-			INSERT INTO signals (item_id, signal_type, score, metadata, expires_at)
-			VALUES ($1, $2, $3, $4, $5)
-			ON CONFLICT (item_id, signal_type) DO UPDATE SET
-				score = EXCLUDED.score,
-				metadata = EXCLUDED.metadata,
-				created_at = NOW(),
-				expires_at = EXCLUDED.expires_at
-		`, s.ItemID, s.SignalType, s.Score, metaJSON, s.ExpiresAt)
-	}
-
-	br := r.pool.SendBatch(ctx, batch)
-	defer br.Close()
-
+	const chunkSize = 500
 	var upserted int64
-	for range signals {
-		ct, err := br.Exec()
-		if err != nil {
-			return upserted, fmt.Errorf("batch exec signal upsert: %w", err)
+
+	for i := 0; i < len(signals); i += chunkSize {
+		end := i + chunkSize
+		if end > len(signals) {
+			end = len(signals)
 		}
-		upserted += ct.RowsAffected()
+		chunk := signals[i:end]
+
+		batch := &pgx.Batch{}
+		for _, s := range chunk {
+			metaJSON, err := json.Marshal(s.Metadata)
+			if err != nil {
+				return upserted, fmt.Errorf("marshal signal metadata: %w", err)
+			}
+			batch.Queue(`
+				INSERT INTO signals (item_id, signal_type, score, metadata, expires_at)
+				VALUES ($1, $2, $3, $4, $5)
+				ON CONFLICT (item_id, signal_type) DO UPDATE SET
+					score = EXCLUDED.score,
+					metadata = EXCLUDED.metadata,
+					created_at = NOW(),
+					expires_at = EXCLUDED.expires_at
+			`, s.ItemID, s.SignalType, s.Score, metaJSON, s.ExpiresAt)
+		}
+
+		br := r.pool.SendBatch(ctx, batch)
+		for range chunk {
+			ct, err := br.Exec()
+			if err != nil {
+				br.Close()
+				return upserted, fmt.Errorf("batch exec signal upsert: %w", err)
+			}
+			upserted += ct.RowsAffected()
+		}
+		br.Close()
 	}
+
 	return upserted, nil
 }
 
