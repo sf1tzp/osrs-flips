@@ -611,6 +611,7 @@
             yNice
             padding={volumePadding}
             xInterval={hasDbVolume ? undefined : volumeInterval}
+            tooltip={priceTooltip}
           >
             <Svg>
               {#if hasDbVolume}
@@ -629,7 +630,50 @@
                 <Bars y="lowVolume" class="fill-[var(--color-lowVolume)]" />
               {/if}
               <Axis placement="bottom" format={axisFormat} tickSpacing={100} />
+              <Axis placement="right" format={formatVolume} />
+              <Highlight lines={highlightLines} />
             </Svg>
+            <Tooltip.Root x="data" y="data" anchor="top-right" variant="none" contained="window">
+              {#snippet children({ data: d })}
+                {#if d}
+                  <div
+                    class="border-border/50 bg-background rounded-lg border px-3 py-2 text-xs shadow-xl"
+                  >
+                    <div class="mb-1 font-medium">
+                      {formatTime(d.time)}
+                    </div>
+                    <div class="grid gap-1">
+                      <div class="flex items-center justify-between gap-4">
+                        <span class="flex items-center gap-1.5">
+                          <span class="size-2.5 rounded-sm bg-[var(--color-highVolume)]"></span>
+                          <span class="text-muted-foreground">Buy Vol</span>
+                        </span>
+                        <span class="font-mono font-medium tabular-nums">
+                          {formatVolume(d.highVolume)}
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between gap-4">
+                        <span class="flex items-center gap-1.5">
+                          <span class="size-2.5 rounded-sm bg-[var(--color-lowVolume)]"></span>
+                          <span class="text-muted-foreground">Sell Vol</span>
+                        </span>
+                        <span class="font-mono font-medium tabular-nums">
+                          {formatVolume(d.lowVolume)}
+                        </span>
+                      </div>
+                      <div
+                        class="border-border flex items-center justify-between gap-4 border-t pt-1"
+                      >
+                        <span class="text-muted-foreground">Total</span>
+                        <span class="font-mono font-medium tabular-nums">
+                          {formatVolume((d.highVolume ?? 0) + (d.lowVolume ?? 0))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              {/snippet}
+            </Tooltip.Root>
           </Chart>
         </ChartContainer>
       {/if}

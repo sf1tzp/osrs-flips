@@ -20,8 +20,8 @@ export const SOURCE_OPTIONS: Record<PriceHistoryRange, PriceHistorySource[]> = {
 export const DEFAULT_SOURCES: Record<PriceHistoryRange, PriceHistorySource> = {
   '1h': 'observations',
   '6h': 'observations',
-  '24h': '5m',
-  '7d': '1h',
+  '24h': 'observations',
+  '7d': 'observations',
   '30d': '1h',
   '3m': '1h',
   '6m': '24h',
