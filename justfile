@@ -1,5 +1,11 @@
 set dotenv-load
 
+secrets-local:
+    sops -d secrets/local.env > .env
+
+edit-secrets HOST:
+    sops secrets/{{HOST}}.env
+
 # Build all binaries and images
 build: build-bot build-collector
 
