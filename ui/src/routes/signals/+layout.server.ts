@@ -12,6 +12,7 @@ export interface CompoundedItem {
   lowPrice: number | null;
   margin: number | null;
   buyLimit: number | null;
+  volume24h: number | null;
 }
 
 export const load: LayoutServerLoad = async () => {
@@ -50,7 +51,8 @@ export const load: LayoutServerLoad = async () => {
       highPrice: first.highPrice,
       lowPrice: first.lowPrice,
       margin: withMargin?.margin ?? null,
-      buyLimit: first.buyLimit
+      buyLimit: first.buyLimit,
+      volume24h: first.volume24h
     });
   }
 

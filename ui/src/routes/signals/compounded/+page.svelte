@@ -6,6 +6,7 @@
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import TradeDialog from '$lib/components/trade-dialog.svelte';
   import ItemRowDetail from '$lib/components/item-row-detail.svelte';
+  import ColumnFilterPopover from '$lib/components/column-filter-popover.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
   import type { CompoundedItem } from '../+layout.server';
   import { signalFilters } from '$lib/signal-filters.svelte';
@@ -29,9 +30,6 @@
   } | null>(null);
 
   function openTrade(item: CompoundedItem) {
-    // Derive target sell price from signal metadata:
-    // - Momentum signals (MACD/RSI) carry sma_24h as the mean-reversion target
-    // - Flip signals use high_price as the sell target
     let targetSellPrice: number | null = null;
     for (const s of item.signals) {
       const sma = s.metadata?.sma_24h;
@@ -67,7 +65,16 @@
     return `/faq#${map[type] ?? type}`;
   }
 
-  type SortKey = 'itemName' | 'signalCount' | 'compositeScore' | 'volumeConfidence' | 'margin';
+  type SortKey =
+    | 'itemName'
+    | 'signalCount'
+    | 'compositeScore'
+    | 'volumeConfidence'
+    | 'lowPrice'
+    | 'highPrice'
+    | 'margin'
+    | 'volume24h'
+    | 'buyLimit';
 
   let sortKey = $state<SortKey>('compositeScore');
   let sortDir = $state<'asc' | 'desc'>('desc');
@@ -91,29 +98,43 @@
         return item.compositeScore;
       case 'volumeConfidence':
         return item.volumeConfidence;
+      case 'lowPrice':
+        return item.lowPrice;
+      case 'highPrice':
+        return item.highPrice;
       case 'margin':
         return item.margin;
+      case 'volume24h':
+        return item.volume24h;
+      case 'buyLimit':
+        return item.buyLimit;
     }
   }
 
   let sorted = $derived.by(() => {
-    return (data.compoundedItems as CompoundedItem[]).filter((item) => signalFilters.matchesItemSignals(item.signals)).toSorted((a, b) => {
-      const av = getSortValue(a, sortKey);
-      const bv = getSortValue(b, sortKey);
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
+    return (data.compoundedItems as CompoundedItem[])
+      .filter((item) => signalFilters.matchesItemSignals(item.signals))
+      .toSorted((a, b) => {
+        const av = getSortValue(a, sortKey);
+        const bv = getSortValue(b, sortKey);
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
   });
 
-  const columns: { key: SortKey; label: string }[] = [
+  const columns: { key: SortKey; label: string; filterable?: boolean }[] = [
     { key: 'itemName', label: 'Item' },
     { key: 'signalCount', label: 'Signals' },
     { key: 'compositeScore', label: 'Score' },
     { key: 'volumeConfidence', label: 'RVOL' },
-    { key: 'margin', label: 'Margin' }
+    { key: 'lowPrice', label: 'Buy', filterable: true },
+    { key: 'highPrice', label: 'Sell', filterable: true },
+    { key: 'margin', label: 'Margin', filterable: true },
+    { key: 'volume24h', label: 'Volume', filterable: true },
+    { key: 'buyLimit', label: 'Buy Limit', filterable: true }
   ];
 
   function volColor(vc: number | null): string {
@@ -144,6 +165,15 @@
     if (n == null) return '—';
     return n.toLocaleString();
   }
+
+  function formatVolume(n: number | null): string {
+    if (n == null) return '—';
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+    return n.toLocaleString();
+  }
+
+  const f = signalFilters;
 </script>
 
 <h1 class="mb-2 text-2xl font-bold">
@@ -167,21 +197,30 @@
         <tr class="border-b bg-muted/50">
           {#each columns as col}
             <th class="px-4 py-3 text-left font-medium text-muted-foreground">
-              <button
-                class="inline-flex cursor-pointer items-center gap-1 select-none"
-                onclick={() => toggleSort(col.key)}
-              >
-                {col.label}
-                {#if sortKey === col.key}
-                  {#if sortDir === 'asc'}
-                    <ArrowUp class="size-3.5" />
+              <div class="inline-flex items-center gap-1">
+                <button
+                  class="inline-flex cursor-pointer items-center gap-1 select-none"
+                  onclick={() => toggleSort(col.key)}
+                >
+                  {col.label}
+                  {#if sortKey === col.key}
+                    {#if sortDir === 'asc'}
+                      <ArrowUp class="size-3.5" />
+                    {:else}
+                      <ArrowDown class="size-3.5" />
+                    {/if}
                   {:else}
-                    <ArrowDown class="size-3.5" />
+                    <ArrowUpDown class="size-3.5 opacity-30" />
                   {/if}
-                {:else}
-                  <ArrowUpDown class="size-3.5 opacity-30" />
+                </button>
+                {#if col.filterable}
+                  <ColumnFilterPopover
+                    label={col.label}
+                    bind:min={f.columnFilters[col.key].min}
+                    bind:max={f.columnFilters[col.key].max}
+                  />
                 {/if}
-              </button>
+              </div>
             </th>
           {/each}
           <th class="px-4 py-3"></th>
@@ -235,6 +274,8 @@
             <td class="px-4 py-3 tabular-nums {volColor(item.volumeConfidence)}"
               >{volLabel(item.volumeConfidence)}</td
             >
+            <td class="px-4 py-3 tabular-nums">{formatGp(item.lowPrice)}</td>
+            <td class="px-4 py-3 tabular-nums">{formatGp(item.highPrice)}</td>
             <td
               class="px-4 py-3 tabular-nums {item.margin != null && item.margin > 0
                 ? 'text-green-500'
@@ -244,6 +285,8 @@
             >
               {item.margin != null ? formatGp(item.margin) : '—'}
             </td>
+            <td class="px-4 py-3 tabular-nums">{formatVolume(item.volume24h)}</td>
+            <td class="px-4 py-3 tabular-nums">{formatGp(item.buyLimit)}</td>
             <td class="px-4 py-3">
               <button
                 type="button"

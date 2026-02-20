@@ -6,6 +6,7 @@
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import TradeDialog from '$lib/components/trade-dialog.svelte';
   import ItemRowDetail from '$lib/components/item-row-detail.svelte';
+  import ColumnFilterPopover from '$lib/components/column-filter-popover.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
   import { signalFilters } from '$lib/signal-filters.svelte';
 
@@ -28,8 +29,6 @@
   } | null>(null);
 
   function openSignalTrade(signal: ActiveSignal) {
-    // For flip signals, target sell price is the insta-buy (high) price.
-    // For momentum signals, target is the SMA (mean-reversion target).
     const sma = signal.metadata?.sma_24h;
     const targetSellPrice = typeof sma === 'number' ? sma : signal.highPrice;
     tradeDialogPrefill = {
@@ -70,6 +69,8 @@
     | 'highPrice'
     | 'margin'
     | 'marginPct'
+    | 'volume24h'
+    | 'buyLimit'
     | 'score';
 
   let sortKey = $state<SortKey>('margin');
@@ -98,6 +99,10 @@
         return signal.margin;
       case 'marginPct':
         return marginPct(signal);
+      case 'volume24h':
+        return signal.volume24h;
+      case 'buyLimit':
+        return signal.buyLimit;
       case 'score':
         return signal.score;
     }
@@ -115,13 +120,15 @@
     });
   });
 
-  const columns: { key: SortKey; label: string }[] = [
+  const columns: { key: SortKey; label: string; filterable?: boolean }[] = [
     { key: 'itemName', label: 'Item' },
     { key: 'signalType', label: 'Type' },
-    { key: 'lowPrice', label: 'Buy' },
-    { key: 'highPrice', label: 'Sell' },
-    { key: 'margin', label: 'Margin' },
+    { key: 'lowPrice', label: 'Buy', filterable: true },
+    { key: 'highPrice', label: 'Sell', filterable: true },
+    { key: 'margin', label: 'Margin', filterable: true },
     { key: 'marginPct', label: 'Margin %' },
+    { key: 'volume24h', label: 'Volume', filterable: true },
+    { key: 'buyLimit', label: 'Buy Limit', filterable: true },
     { key: 'score', label: 'Score' }
   ];
 
@@ -129,15 +136,24 @@
     if (n == null) return '—';
     return n.toLocaleString();
   }
+
+  function formatVolume(n: number | null): string {
+    if (n == null) return '—';
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+    return n.toLocaleString();
+  }
+
+  const f = signalFilters;
 </script>
 
 <h1 class="mb-4 text-2xl font-bold">
-  Flip Signals
+  Price Signals
   <span class="text-lg font-normal text-muted-foreground">({data.flipSignals.length})</span>
 </h1>
 
 {#if sorted.length === 0}
-  <p class="text-sm text-muted-foreground">No active flip signals right now.</p>
+  <p class="text-sm text-muted-foreground">No active price signals right now.</p>
 {:else}
   <div class="overflow-x-auto rounded-lg border">
     <table class="w-full text-sm">
@@ -145,21 +161,30 @@
         <tr class="border-b bg-muted/50">
           {#each columns as col}
             <th class="px-4 py-3 text-left font-medium text-muted-foreground">
-              <button
-                class="inline-flex cursor-pointer items-center gap-1 select-none"
-                onclick={() => toggleSort(col.key)}
-              >
-                {col.label}
-                {#if sortKey === col.key}
-                  {#if sortDir === 'asc'}
-                    <ArrowUp class="size-3.5" />
+              <div class="inline-flex items-center gap-1">
+                <button
+                  class="inline-flex cursor-pointer items-center gap-1 select-none"
+                  onclick={() => toggleSort(col.key)}
+                >
+                  {col.label}
+                  {#if sortKey === col.key}
+                    {#if sortDir === 'asc'}
+                      <ArrowUp class="size-3.5" />
+                    {:else}
+                      <ArrowDown class="size-3.5" />
+                    {/if}
                   {:else}
-                    <ArrowDown class="size-3.5" />
+                    <ArrowUpDown class="size-3.5 opacity-30" />
                   {/if}
-                {:else}
-                  <ArrowUpDown class="size-3.5 opacity-30" />
+                </button>
+                {#if col.filterable}
+                  <ColumnFilterPopover
+                    label={col.label}
+                    bind:min={f.columnFilters[col.key].min}
+                    bind:max={f.columnFilters[col.key].max}
+                  />
                 {/if}
-              </button>
+              </div>
             </th>
           {/each}
           <th class="px-4 py-3"></th>
@@ -220,6 +245,8 @@
             >
               {mPct != null ? `${mPct}%` : '—'}
             </td>
+            <td class="px-4 py-3 tabular-nums">{formatVolume(signal.volume24h)}</td>
+            <td class="px-4 py-3 tabular-nums">{formatGp(signal.buyLimit)}</td>
             <td class="px-4 py-3 tabular-nums">{signal.score.toFixed(2)}</td>
             <td class="px-4 py-3">
               <button

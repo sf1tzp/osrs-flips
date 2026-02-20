@@ -4,6 +4,7 @@
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import ItemRowDetail from '$lib/components/item-row-detail.svelte';
+  import ColumnFilterPopover from '$lib/components/column-filter-popover.svelte';
   import type { ActiveSignal } from '$lib/server/db/queries';
   import { signalFilters } from '$lib/signal-filters.svelte';
 
@@ -29,7 +30,16 @@
     return `/faq#${map[type] ?? type}`;
   }
 
-  type SortKey = 'itemName' | 'signalType' | 'score' | 'lowPrice' | 'highPrice' | 'createdAt';
+  type SortKey =
+    | 'itemName'
+    | 'signalType'
+    | 'score'
+    | 'lowPrice'
+    | 'highPrice'
+    | 'margin'
+    | 'volume24h'
+    | 'buyLimit'
+    | 'createdAt';
 
   let sortKey = $state<SortKey>('score');
   let sortDir = $state<'asc' | 'desc'>('desc');
@@ -55,6 +65,12 @@
         return signal.lowPrice;
       case 'highPrice':
         return signal.highPrice;
+      case 'margin':
+        return signal.margin;
+      case 'volume24h':
+        return signal.volume24h;
+      case 'buyLimit':
+        return signal.buyLimit;
       case 'createdAt':
         return signal.createdAt;
     }
@@ -77,6 +93,20 @@
     return n.toLocaleString();
   }
 
+  function formatVolume(n: number | null): string {
+    if (n == null) return '—';
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+    return n.toLocaleString();
+  }
+
+  function marginColor(n: number | null): string {
+    if (n == null) return '';
+    if (n > 0) return 'text-green-500';
+    if (n < 0) return 'text-red-500';
+    return '';
+  }
+
   function formatTime(iso: string): string {
     const d = new Date(iso);
     const now = new Date();
@@ -89,14 +119,19 @@
     return `${Math.floor(diffH / 24)}d ago`;
   }
 
-  const columns: { key: SortKey; label: string }[] = [
+  const columns: { key: SortKey; label: string; filterable?: boolean }[] = [
     { key: 'itemName', label: 'Item' },
     { key: 'signalType', label: 'Type' },
     { key: 'score', label: 'Score' },
-    { key: 'lowPrice', label: 'Buy' },
-    { key: 'highPrice', label: 'Sell' },
+    { key: 'lowPrice', label: 'Buy', filterable: true },
+    { key: 'highPrice', label: 'Sell', filterable: true },
+    { key: 'margin', label: 'Margin', filterable: true },
+    { key: 'volume24h', label: 'Volume', filterable: true },
+    { key: 'buyLimit', label: 'Buy Limit', filterable: true },
     { key: 'createdAt', label: 'Detected' }
   ];
+
+  const f = signalFilters;
 </script>
 
 <h1 class="mb-2 text-2xl font-bold">
@@ -117,21 +152,30 @@
         <tr class="border-b bg-muted/50">
           {#each columns as col}
             <th class="px-4 py-3 text-left font-medium text-muted-foreground">
-              <button
-                class="inline-flex cursor-pointer items-center gap-1 select-none"
-                onclick={() => toggleSort(col.key)}
-              >
-                {col.label}
-                {#if sortKey === col.key}
-                  {#if sortDir === 'asc'}
-                    <ArrowUp class="size-3.5" />
+              <div class="inline-flex items-center gap-1">
+                <button
+                  class="inline-flex cursor-pointer items-center gap-1 select-none"
+                  onclick={() => toggleSort(col.key)}
+                >
+                  {col.label}
+                  {#if sortKey === col.key}
+                    {#if sortDir === 'asc'}
+                      <ArrowUp class="size-3.5" />
+                    {:else}
+                      <ArrowDown class="size-3.5" />
+                    {/if}
                   {:else}
-                    <ArrowDown class="size-3.5" />
+                    <ArrowUpDown class="size-3.5 opacity-30" />
                   {/if}
-                {:else}
-                  <ArrowUpDown class="size-3.5 opacity-30" />
+                </button>
+                {#if col.filterable}
+                  <ColumnFilterPopover
+                    label={col.label}
+                    bind:min={f.columnFilters[col.key].min}
+                    bind:max={f.columnFilters[col.key].max}
+                  />
                 {/if}
-              </button>
+              </div>
             </th>
           {/each}
         </tr>
@@ -173,6 +217,11 @@
             <td class="px-4 py-3 tabular-nums">{signal.score.toFixed(2)}</td>
             <td class="px-4 py-3 tabular-nums">{formatGp(signal.lowPrice)}</td>
             <td class="px-4 py-3 tabular-nums">{formatGp(signal.highPrice)}</td>
+            <td class="px-4 py-3 tabular-nums {marginColor(signal.margin)}"
+              >{formatGp(signal.margin)}</td
+            >
+            <td class="px-4 py-3 tabular-nums">{formatVolume(signal.volume24h)}</td>
+            <td class="px-4 py-3 tabular-nums">{formatGp(signal.buyLimit)}</td>
             <td class="px-4 py-3 text-muted-foreground">{formatTime(signal.createdAt)}</td>
           </tr>
           {#if isExpanded}
