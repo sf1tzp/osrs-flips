@@ -6,18 +6,39 @@ secrets-local:
 edit-secrets HOST:
     sops secrets/{{HOST}}.env
 
-# Build all binaries and images
-build: build-bot build-collector
-
-# Build bot binary and Docker image
-build-bot:
-    go build -o osrs-flips-bot cmd/bot/main.go
-    nerdctl build -t osrs-flips-bot:latest -f Dockerfile .
-
-# Build collector binary and Docker image
+# Build collector binary and Docker image, save as tar
 build-collector:
+    #!/usr/bin/env bash
+    set -euo pipefail
     go build -o osrs-flips-collector ./cmd/collector/
-    nerdctl build -t osrs-flips-collector:latest -f Dockerfile.collector .
+    ~/.local/bin/nerdctl build -t osrs-flips-collector:latest -f Dockerfile.collector .
+    ~/.local/bin/nerdctl save osrs-flips-collector:latest -o osrs-flips-collector-latest.tar
+
+# Build UI Docker image, save as tar
+build-ui:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p ui/certs
+    ~/.local/bin/nerdctl build -t osrs-flips-ui:latest -f ui/Dockerfile ui/
+    ~/.local/bin/nerdctl save osrs-flips-ui:latest -o osrs-flips-ui-latest.tar
+
+# Build all images
+build HOST: build-collector build-ui
+
+# Deploy to remote host
+deploy HOST:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ssh {{HOST}} -C "mkdir -p ~/images ~/caddyfiles ~/osrs-flips"
+    sops -d secrets/{{HOST}}.env | ssh {{HOST}} "cat > ~/osrs-flips/.env"
+    scp caddyfiles/{{HOST}} {{HOST}}:~/caddyfiles/osrs-flips.caddy
+    scp docker-compose.yml {{HOST}}:~/osrs-flips-compose.yaml
+    scp osrs-flips-collector-latest.tar {{HOST}}:~/images/
+    scp osrs-flips-ui-latest.tar {{HOST}}:~/images/
+    ssh {{HOST}} -C "~/.local/bin/nerdctl load -i ~/images/osrs-flips-collector-latest.tar"
+    ssh {{HOST}} -C "~/.local/bin/nerdctl load -i ~/images/osrs-flips-ui-latest.tar"
+    ssh {{HOST}} -C "~/.local/bin/nerdctl compose -f ~/osrs-flips-compose.yaml down"
+    ssh {{HOST}} -C "~/.local/bin/nerdctl compose -f ~/osrs-flips-compose.yaml up -d --env-file ~/osrs-flips/.env"
 
 # Run a specific job (example with "Tempting Trades Under 1M")
 run JOB_NAME:

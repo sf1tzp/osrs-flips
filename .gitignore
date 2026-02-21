@@ -75,3 +75,6 @@ python/*.json
 python/*.txt
 
 output
+
+# Container image tars
+*.tar
