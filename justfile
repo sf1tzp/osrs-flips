@@ -40,6 +40,25 @@ deploy HOST:
     ssh {{HOST}} -C "~/.local/bin/nerdctl compose -f ~/osrs-flips-compose.yaml down"
     ssh {{HOST}} -C "~/.local/bin/nerdctl compose -f ~/osrs-flips-compose.yaml up -d --env-file ~/osrs-flips/.env"
 
+# Deploy a tagged build pulled from the registry
+deploy-prod HOST TAG:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    REGISTRY="gitea.zen.lofi"
+    REPO="sfi/osrs-flips"
+    COLLECTOR_IMAGE="$REGISTRY/$REPO-collector:{{TAG}}"
+    UI_IMAGE="$REGISTRY/$REPO-ui:{{TAG}}"
+    ssh {{HOST}} -C "mkdir -p ~/caddyfiles ~/osrs-flips"
+    sops -d secrets/{{HOST}}.env | ssh {{HOST}} "cat > ~/osrs-flips/.env"
+    scp caddyfiles/{{HOST}} {{HOST}}:~/caddyfiles/osrs-flips.caddy
+    scp docker-compose.yml {{HOST}}:~/osrs-flips-compose.yaml
+    ssh {{HOST}} -C "~/.local/bin/nerdctl pull $COLLECTOR_IMAGE"
+    ssh {{HOST}} -C "~/.local/bin/nerdctl pull $UI_IMAGE"
+    ssh {{HOST}} -C "OSRS_FLIPS_COLLECTOR_IMAGE=$COLLECTOR_IMAGE OSRS_FLIPS_UI_IMAGE=$UI_IMAGE \
+        ~/.local/bin/nerdctl compose -f ~/osrs-flips-compose.yaml down"
+    ssh {{HOST}} -C "OSRS_FLIPS_COLLECTOR_IMAGE=$COLLECTOR_IMAGE OSRS_FLIPS_UI_IMAGE=$UI_IMAGE \
+        ~/.local/bin/nerdctl compose -f ~/osrs-flips-compose.yaml up -d --env-file ~/osrs-flips/.env"
+
 # Run a specific job (example with "Tempting Trades Under 1M")
 run JOB_NAME:
     go run cmd/main.go -job="{{JOB_NAME}}"
@@ -71,8 +90,13 @@ test-coverage:
     go test -v -coverprofile=coverage.out ./...
     go tool cover -html=coverage.out -o coverage.html
 
-lint:
+lint: lint-collector lint-ui
+
+lint-collector:
     golangci-lint run ./...
+
+lint-ui:
+    cd ui && npm run lint
 
 fmt:
     go fmt ./...
