@@ -5,7 +5,7 @@ run npm ci
 copy . .
 run NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
-from node:20-alpine
+from node:24-alpine
 env NODE_ENV=production
 workdir /app
 copy package*.json ./
