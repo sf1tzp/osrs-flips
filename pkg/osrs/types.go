@@ -121,6 +121,22 @@ type VolumeMetrics struct {
 	InstaBuyPriceTrend1m   string
 }
 
+// BulkPriceDataPoint represents a single item's data from a bulk price endpoint (/5m, /1h, /24h).
+// Same fields as VolumeDataPoint but without per-point timestamp (it's at the top level).
+type BulkPriceDataPoint struct {
+	AvgHighPrice    *int `json:"avgHighPrice"`
+	HighPriceVolume *int `json:"highPriceVolume"`
+	AvgLowPrice     *int `json:"avgLowPrice"`
+	LowPriceVolume  *int `json:"lowPriceVolume"`
+}
+
+// BulkPriceResponse represents the API response from bulk price endpoints (/5m, /1h, /24h).
+// The data map is keyed by item ID (as string).
+type BulkPriceResponse struct {
+	Data      map[string]BulkPriceDataPoint `json:"data"`
+	Timestamp int64                         `json:"timestamp"`
+}
+
 // FilterOptions defines filtering criteria (equivalent to apply_filter parameters)
 type FilterOptions struct {
 	BuyLimitMin         *int

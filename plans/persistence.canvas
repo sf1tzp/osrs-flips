@@ -1,0 +1,196 @@
+{
+  "nodes": [
+    {
+      "type": "text",
+      "id": "0ca5dee3-6f97-4c50-8a8a-ae00c8b848c4",
+      "x": 820,
+      "y": 320,
+      "width": 260,
+      "height": 180,
+      "text": "## Poller\nRegularly get latest prices"
+    },
+    {
+      "type": "text",
+      "id": "1316dd80-d310-49de-94a5-3719eba9f027",
+      "x": 140,
+      "y": 320,
+      "width": 260,
+      "height": 180,
+      "text": "## Backfill\nCalled when initializing database or when new items added"
+    },
+    {
+      "type": "text",
+      "id": "dced4abb-377a-4ae0-912d-cba72097c13b",
+      "x": 480,
+      "y": 320,
+      "width": 260,
+      "height": 180,
+      "text": "## Gap Filler\n\nLooks for missing buckets\nCalls API or Computes from price observations"
+    },
+    {
+      "type": "text",
+      "id": "880da12d-7bd8-4ca5-b7cb-b9fadf2b3151",
+      "x": 140,
+      "y": 600,
+      "width": 260,
+      "height": 180,
+      "text": "### `price_buckets`\n\nPrioritize using API as source of truth. If API unavailable or no data, compute from price_observations"
+    },
+    {
+      "type": "text",
+      "id": "3b644919-4f02-4158-aa5c-1cb5edcbaf68",
+      "x": 820,
+      "y": -180,
+      "width": 260,
+      "height": 80,
+      "text": "`/latest`"
+    },
+    {
+      "type": "text",
+      "id": "056e62f0-0e53-44b6-aeb6-f18c9250499b",
+      "x": 140,
+      "y": -180,
+      "width": 260,
+      "height": 80,
+      "text": "`/timeseries`"
+    },
+    {
+      "type": "text",
+      "id": "0f898067-066f-448c-a3aa-495f323ef74c",
+      "x": 480,
+      "y": -180,
+      "width": 260,
+      "height": 80,
+      "text": "`/5m`"
+    },
+    {
+      "type": "text",
+      "id": "35a643af-1b75-4e17-a109-3a0deb158c15",
+      "x": 820,
+      "y": 600,
+      "width": 260,
+      "height": 200,
+      "text": "### `price_observations`\n\nLifecycle with timescaleDB Chunk Operations"
+    },
+    {
+      "type": "text",
+      "id": "de963b86-14d4-4c92-afd2-6edbf6b26e4a",
+      "x": 480,
+      "y": 800,
+      "width": 260,
+      "height": 360,
+      "text": "### `ingestion_attempts`\n\nThis lets gap-filler know: \"Did we try to fetch 5m buckets for 2:00-2:05? If yes and nothing's in price_buckets, the API had no data. If no, we need to fetch.\"\n\n**Gotcha:** Without this, your gap-filler might infinitely retry fetching data that doesn't exist, or miss real gaps."
+    },
+    {
+      "type": "text",
+      "id": "1d55cf01-94b5-4122-b4ee-f66168e116cc",
+      "x": -320,
+      "y": 0,
+      "width": 340,
+      "height": 260,
+      "text": "## Rate Limiting Token Bucket\n\nA token bucket refills at a constant rate and allows bursts up to bucket capacity.\n\nEncapsulated in a Redis script\n\nEach service waits for a token before calling OSRS API"
+    }
+  ],
+  "edges": [
+    {
+      "id": "f6255a0c-19ef-4727-949f-8c49b93c546f",
+      "fromNode": "0ca5dee3-6f97-4c50-8a8a-ae00c8b848c4",
+      "fromSide": "bottom",
+      "toNode": "35a643af-1b75-4e17-a109-3a0deb158c15",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "315aaa8c-6014-44a9-9851-6d3432f8208e",
+      "fromNode": "1316dd80-d310-49de-94a5-3719eba9f027",
+      "fromSide": "bottom",
+      "toNode": "880da12d-7bd8-4ca5-b7cb-b9fadf2b3151",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "2f11b9eb-6dcb-4843-a21e-056e1ce77efb",
+      "fromNode": "dced4abb-377a-4ae0-912d-cba72097c13b",
+      "fromSide": "bottom",
+      "toNode": "de963b86-14d4-4c92-afd2-6edbf6b26e4a",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "43416a4c-96de-4744-a5e1-ea389e0e475d",
+      "fromNode": "dced4abb-377a-4ae0-912d-cba72097c13b",
+      "fromSide": "bottom",
+      "toNode": "880da12d-7bd8-4ca5-b7cb-b9fadf2b3151",
+      "toSide": "right",
+      "toEnd": "arrow",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "43535b6f-d143-4c72-8275-bf8ed41cebca",
+      "fromNode": "1316dd80-d310-49de-94a5-3719eba9f027",
+      "fromSide": "top",
+      "toNode": "056e62f0-0e53-44b6-aeb6-f18c9250499b",
+      "toSide": "bottom",
+      "toEnd": "arrow",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "734b8c83-1607-470a-982f-86ff06d58b95",
+      "fromNode": "dced4abb-377a-4ae0-912d-cba72097c13b",
+      "fromSide": "top",
+      "toNode": "0f898067-066f-448c-a3aa-495f323ef74c",
+      "toSide": "bottom",
+      "toEnd": "arrow",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "1ee668f0-1888-4654-9204-8c53a66488fe",
+      "fromNode": "0ca5dee3-6f97-4c50-8a8a-ae00c8b848c4",
+      "fromSide": "top",
+      "toNode": "3b644919-4f02-4158-aa5c-1cb5edcbaf68",
+      "toSide": "bottom",
+      "toEnd": "arrow",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "11f433e4-75a9-4e66-912f-f8b99faa68c0",
+      "fromNode": "0ca5dee3-6f97-4c50-8a8a-ae00c8b848c4",
+      "fromSide": "top",
+      "toNode": "1d55cf01-94b5-4122-b4ee-f66168e116cc",
+      "toSide": "right",
+      "toEnd": "arrow",
+      "style": "dotted",
+      "shape": "curved"
+    },
+    {
+      "id": "351bca20-4109-4fcb-a1ac-44d59c991d79",
+      "fromNode": "dced4abb-377a-4ae0-912d-cba72097c13b",
+      "fromSide": "top",
+      "toNode": "1d55cf01-94b5-4122-b4ee-f66168e116cc",
+      "toSide": "right",
+      "toEnd": "arrow",
+      "style": "dotted",
+      "shape": "curved"
+    },
+    {
+      "id": "6a82718e-84cc-4a80-a816-c4fc3f1db519",
+      "fromNode": "1316dd80-d310-49de-94a5-3719eba9f027",
+      "fromSide": "top",
+      "toNode": "1d55cf01-94b5-4122-b4ee-f66168e116cc",
+      "toSide": "right",
+      "toEnd": "arrow",
+      "style": "dotted",
+      "shape": "curved"
+    }
+  ]
+}

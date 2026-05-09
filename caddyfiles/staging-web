@@ -1,0 +1,24 @@
+osrs-flips.staging.lofi {
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+    encode gzip zstd
+
+    log {
+        output stdout
+        format json
+    }
+
+    reverse_proxy osrs-flips-ui:3000 {
+        # Timeouts
+        transport http {
+            dial_timeout 5s
+            response_header_timeout 10s
+        }
+
+        # Pass real client IP
+        header_up X-Real-IP {remote_host}
+    }
+}

@@ -1,0 +1,1042 @@
+[
+  {
+    "item_id": 26479,
+    "name": "Shattered relics void ornament kit",
+    "last_sell_price": 779990,
+    "last_buy_price": 723606,
+    "after_tax_takeaway": 40785,
+    "margin_pct": "7.79",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "16",
+        "at_target_sell_price": "32"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "10",
+        "at_target_sell_price": "12"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "284",
+        "at_target_sell_price": "399"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "36204.33",
+        "target_buy_price": "713857",
+        "target_sell_price": "750061"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "35985.00",
+        "target_buy_price": "723320",
+        "target_sell_price": "759305"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "26451.19",
+        "target_buy_price": "672296",
+        "target_sell_price": "698747"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "increasing",
+      "target_buy_price_trend_1w": "sharp increase",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "increasing",
+      "target_sell_price_trend_1w": "sharp increase",
+      "target_sell_price_trend_24h": "sharp increase"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:58:25Z",
+      "last_target_sell_price_time": "2025-09-12T19:53:42Z"
+    }
+  },
+  {
+    "item_id": 29022,
+    "name": "Blood moon chestplate",
+    "last_sell_price": 3500000,
+    "last_buy_price": 3290000,
+    "after_tax_takeaway": 140000,
+    "margin_pct": "6.38",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "35",
+        "at_target_sell_price": "25"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "7",
+        "at_target_sell_price": "5"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "644",
+        "at_target_sell_price": "621"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "78768.02",
+        "target_buy_price": "3224608",
+        "target_sell_price": "3303376"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "118567.00",
+        "target_buy_price": "3279438",
+        "target_sell_price": "3398004"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "66166.03",
+        "target_buy_price": "3043351",
+        "target_sell_price": "3109517"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp decrease",
+      "target_buy_price_trend_1w": "sharp increase",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "sharp decrease",
+      "target_sell_price_trend_1w": "sharp increase",
+      "target_sell_price_trend_24h": "sharp increase"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:54:06Z",
+      "last_target_sell_price_time": "2025-09-12T19:57:59Z"
+    }
+  },
+  {
+    "item_id": 26528,
+    "name": "Shattered cannon ornament kit",
+    "last_sell_price": 712306,
+    "last_buy_price": 670000,
+    "after_tax_takeaway": 28060,
+    "margin_pct": "6.31",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "27",
+        "at_target_sell_price": "26"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "4",
+        "at_target_sell_price": "7"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "191",
+        "at_target_sell_price": "281"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "31305.00",
+        "target_buy_price": "681378",
+        "target_sell_price": "712683"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "42100.00",
+        "target_buy_price": "670000",
+        "target_sell_price": "712100"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "28704.69",
+        "target_buy_price": "675700",
+        "target_sell_price": "704404"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp increase",
+      "target_buy_price_trend_1w": "flat",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "flat",
+      "target_sell_price_trend_1month": "sharp increase",
+      "target_sell_price_trend_1w": "flat",
+      "target_sell_price_trend_24h": "increasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:46:56Z",
+      "last_target_sell_price_time": "2025-09-12T19:48:35Z"
+    }
+  },
+  {
+    "item_id": 23246,
+    "name": "Fremennik kilt",
+    "last_sell_price": 4225440,
+    "last_buy_price": 3981447,
+    "after_tax_takeaway": 159485,
+    "margin_pct": "6.13",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "6",
+        "at_target_sell_price": "15"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "1",
+        "at_target_sell_price": "7"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "236",
+        "at_target_sell_price": "306"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "82595.83",
+        "target_buy_price": "4001746",
+        "target_sell_price": "4084342"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "117642.50",
+        "target_buy_price": "4016247",
+        "target_sell_price": "4133890"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "97771.83",
+        "target_buy_price": "4021074",
+        "target_sell_price": "4118846"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "decreasing",
+      "target_buy_price_trend_1w": "sharp increase",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "decreasing",
+      "target_sell_price_trend_1w": "sharp increase",
+      "target_sell_price_trend_24h": "decreasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:56:39Z",
+      "last_target_sell_price_time": "2025-09-12T19:56:51Z"
+    }
+  },
+  {
+    "item_id": 22994,
+    "name": "Bottomless compost bucket",
+    "last_sell_price": 1343799,
+    "last_buy_price": 1267244,
+    "after_tax_takeaway": 49680,
+    "margin_pct": "6.04",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "11",
+        "at_target_sell_price": "25"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "2",
+        "at_target_sell_price": "0"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "373",
+        "at_target_sell_price": "421"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "31977.57",
+        "target_buy_price": "1299637",
+        "target_sell_price": "1331615"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "61265.68",
+        "target_buy_price": "1256008",
+        "target_sell_price": "1317273"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "decreasing",
+      "target_buy_price_trend_1month": "increasing",
+      "target_buy_price_trend_1w": "sharp decrease",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "increasing",
+      "target_sell_price_trend_1w": "sharp decrease",
+      "target_sell_price_trend_24h": "decreasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:53:01Z",
+      "last_target_sell_price_time": "2025-09-12T19:43:06Z"
+    }
+  },
+  {
+    "item_id": 2581,
+    "name": "Robin hood hat",
+    "last_sell_price": 1525000,
+    "last_buy_price": 1452695,
+    "after_tax_takeaway": 41805,
+    "margin_pct": "4.98",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "12",
+        "at_target_sell_price": "25"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "3",
+        "at_target_sell_price": "3"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "390",
+        "at_target_sell_price": "392"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "36258.91",
+        "target_buy_price": "1452511",
+        "target_sell_price": "1488770"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "41920.17",
+        "target_buy_price": "1453634",
+        "target_sell_price": "1495555"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "31195.16",
+        "target_buy_price": "1449456",
+        "target_sell_price": "1480651"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "decreasing",
+      "target_buy_price_trend_1w": "decreasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "decreasing",
+      "target_sell_price_trend_1w": "decreasing",
+      "target_sell_price_trend_24h": "decreasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:55:45Z",
+      "last_target_sell_price_time": "2025-09-12T19:55:58Z"
+    }
+  },
+  {
+    "item_id": 27662,
+    "name": "Accursed sceptre (u)",
+    "last_sell_price": 4539999,
+    "last_buy_price": 4328735,
+    "after_tax_takeaway": 120465,
+    "margin_pct": "4.88",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "9",
+        "at_target_sell_price": "18"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "0",
+        "at_target_sell_price": "9"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "358",
+        "at_target_sell_price": "328"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "130713.90",
+        "target_buy_price": "4420643",
+        "target_sell_price": "4551356"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "110867.02",
+        "target_buy_price": "4295791",
+        "target_sell_price": "4406658"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp increase",
+      "target_buy_price_trend_1w": "increasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "decreasing",
+      "target_sell_price_trend_1month": "sharp increase",
+      "target_sell_price_trend_1w": "increasing",
+      "target_sell_price_trend_24h": "increasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:59:36Z",
+      "last_target_sell_price_time": "2025-09-12T19:59:20Z"
+    }
+  },
+  {
+    "item_id": 4902,
+    "name": "Dharok's platelegs 0",
+    "last_sell_price": 691428,
+    "last_buy_price": 660000,
+    "after_tax_takeaway": 17600,
+    "margin_pct": "4.76",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "46",
+        "at_target_sell_price": "0"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "15",
+        "at_target_sell_price": "0"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "1243",
+        "at_target_sell_price": "26"
+      }
+    },
+    "price_averages": {
+      "avg_prices_24h": {
+        "margin_gp": "-7065.59",
+        "target_buy_price": "683915",
+        "target_sell_price": "676849"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp increase",
+      "target_buy_price_trend_1w": "increasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "flat",
+      "target_sell_price_trend_1month": "sharp increase",
+      "target_sell_price_trend_1w": "increasing",
+      "target_sell_price_trend_24h": "flat"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:58:10Z",
+      "last_target_sell_price_time": "2025-09-12T17:49:01Z"
+    }
+  },
+  {
+    "item_id": 12601,
+    "name": "Ring of the gods",
+    "last_sell_price": 902657,
+    "last_buy_price": 863233,
+    "after_tax_takeaway": 21371,
+    "margin_pct": "4.57",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "5",
+        "at_target_sell_price": "20"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "2",
+        "at_target_sell_price": "4"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "259",
+        "at_target_sell_price": "381"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "27421.58",
+        "target_buy_price": "869513",
+        "target_sell_price": "896935"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "39899.17",
+        "target_buy_price": "861086",
+        "target_sell_price": "900985"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "23292.66",
+        "target_buy_price": "816487",
+        "target_sell_price": "839780"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp decrease",
+      "target_buy_price_trend_1w": "decreasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "sharp decrease",
+      "target_sell_price_trend_1w": "decreasing",
+      "target_sell_price_trend_24h": "sharp increase"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:59:19Z",
+      "last_target_sell_price_time": "2025-09-12T19:56:48Z"
+    }
+  },
+  {
+    "item_id": 31081,
+    "name": "Antler guard",
+    "last_sell_price": 2871332,
+    "last_buy_price": 2746404,
+    "after_tax_takeaway": 67502,
+    "margin_pct": "4.55",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "18",
+        "at_target_sell_price": "14"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "11",
+        "at_target_sell_price": "9"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "293",
+        "at_target_sell_price": "340"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "73715.00",
+        "target_buy_price": "2780545",
+        "target_sell_price": "2854260"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "136926.83",
+        "target_buy_price": "2738770",
+        "target_sell_price": "2875696"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "91856.27",
+        "target_buy_price": "2542383",
+        "target_sell_price": "2634239"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "decreasing",
+      "target_buy_price_trend_1month": "sharp decrease",
+      "target_buy_price_trend_1w": "decreasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "sharp decrease",
+      "target_sell_price_trend_1w": "decreasing",
+      "target_sell_price_trend_24h": "sharp increase"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:59:35Z",
+      "last_target_sell_price_time": "2025-09-12T19:56:57Z"
+    }
+  },
+  {
+    "item_id": 28942,
+    "name": "Echo crystal",
+    "last_sell_price": 1248070,
+    "last_buy_price": 1196075,
+    "after_tax_takeaway": 27034,
+    "margin_pct": "4.35",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "6",
+        "at_target_sell_price": "24"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "1",
+        "at_target_sell_price": "9"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "275",
+        "at_target_sell_price": "379"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "26943.00",
+        "target_buy_price": "1195064",
+        "target_sell_price": "1222008"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "51643.00",
+        "target_buy_price": "1196075",
+        "target_sell_price": "1247718"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "39400.86",
+        "target_buy_price": "1160705",
+        "target_sell_price": "1200106"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp decrease",
+      "target_buy_price_trend_1w": "flat",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "sharp decrease",
+      "target_sell_price_trend_1w": "flat",
+      "target_sell_price_trend_24h": "sharp increase"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:49:40Z",
+      "last_target_sell_price_time": "2025-09-12T19:55:08Z"
+    }
+  },
+  {
+    "item_id": 12900,
+    "name": "Uncharged toxic trident",
+    "last_sell_price": 4342477,
+    "last_buy_price": 4163984,
+    "after_tax_takeaway": 91644,
+    "margin_pct": "4.29",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "26",
+        "at_target_sell_price": "30"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "4",
+        "at_target_sell_price": "5"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "547",
+        "at_target_sell_price": "434"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "153797.90",
+        "target_buy_price": "4260806",
+        "target_sell_price": "4414604"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "97468.00",
+        "target_buy_price": "4248390",
+        "target_sell_price": "4345858"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "74113.88",
+        "target_buy_price": "3964128",
+        "target_sell_price": "4038242"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "decreasing",
+      "target_buy_price_trend_1month": "increasing",
+      "target_buy_price_trend_1w": "increasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "decreasing",
+      "target_sell_price_trend_1month": "increasing",
+      "target_sell_price_trend_1w": "increasing",
+      "target_sell_price_trend_24h": "increasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:59:19Z",
+      "last_target_sell_price_time": "2025-09-12T19:58:43Z"
+    }
+  },
+  {
+    "item_id": 26945,
+    "name": "Pharaoh's sceptre (uncharged)",
+    "last_sell_price": 2485994,
+    "last_buy_price": 2384561,
+    "after_tax_takeaway": 51714,
+    "margin_pct": "4.25",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "12",
+        "at_target_sell_price": "29"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "6",
+        "at_target_sell_price": "10"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "591",
+        "at_target_sell_price": "604"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "80318.30",
+        "target_buy_price": "2402621",
+        "target_sell_price": "2482939"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "101433.00",
+        "target_buy_price": "2384561",
+        "target_sell_price": "2485994"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "38981.66",
+        "target_buy_price": "2459343",
+        "target_sell_price": "2498325"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp decrease",
+      "target_buy_price_trend_1w": "decreasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "flat",
+      "target_sell_price_trend_1month": "sharp decrease",
+      "target_sell_price_trend_1w": "decreasing",
+      "target_sell_price_trend_24h": "decreasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:47:56Z",
+      "last_target_sell_price_time": "2025-09-12T19:57:51Z"
+    }
+  },
+  {
+    "item_id": 11889,
+    "name": "Zamorakian hasta",
+    "last_sell_price": 1699999,
+    "last_buy_price": 1635363,
+    "after_tax_takeaway": 30637,
+    "margin_pct": "3.95",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "14",
+        "at_target_sell_price": "17"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "3",
+        "at_target_sell_price": "6"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "323",
+        "at_target_sell_price": "384"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "12486.46",
+        "target_buy_price": "1635099",
+        "target_sell_price": "1647586"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "52898.50",
+        "target_buy_price": "1630434",
+        "target_sell_price": "1683333"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "34106.13",
+        "target_buy_price": "1632486",
+        "target_sell_price": "1666592"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "decreasing",
+      "target_buy_price_trend_1w": "decreasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "decreasing",
+      "target_sell_price_trend_1w": "decreasing",
+      "target_sell_price_trend_24h": "flat"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:59:30Z",
+      "last_target_sell_price_time": "2025-09-12T19:54:48Z"
+    }
+  },
+  {
+    "item_id": 28933,
+    "name": "Sunfire fanatic helm",
+    "last_sell_price": 831830,
+    "last_buy_price": 801133,
+    "after_tax_takeaway": 14061,
+    "margin_pct": "3.83",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "8",
+        "at_target_sell_price": "13"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "4",
+        "at_target_sell_price": "3"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "261",
+        "at_target_sell_price": "277"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "13398.67",
+        "target_buy_price": "803922",
+        "target_sell_price": "817320"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "35415.00",
+        "target_buy_price": "797888",
+        "target_sell_price": "833303"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "30909.01",
+        "target_buy_price": "762502",
+        "target_sell_price": "793411"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp decrease",
+      "target_buy_price_trend_1w": "sharp decrease",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "sharp decrease",
+      "target_sell_price_trend_1w": "sharp decrease",
+      "target_sell_price_trend_24h": "sharp increase"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:53:15Z",
+      "last_target_sell_price_time": "2025-09-12T19:57:36Z"
+    }
+  },
+  {
+    "item_id": 23389,
+    "name": "Spiked manacles",
+    "last_sell_price": 748426,
+    "last_buy_price": 723306,
+    "after_tax_takeaway": 10152,
+    "margin_pct": "3.47",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "60",
+        "at_target_sell_price": "33"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "2",
+        "at_target_sell_price": "11"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "939",
+        "at_target_sell_price": "748"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "29277.59",
+        "target_buy_price": "731878",
+        "target_sell_price": "761155"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "24671.00",
+        "target_buy_price": "724808",
+        "target_sell_price": "749479"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "20243.32",
+        "target_buy_price": "725153",
+        "target_sell_price": "745397"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "decreasing",
+      "target_buy_price_trend_1w": "increasing",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "decreasing",
+      "target_sell_price_trend_1month": "decreasing",
+      "target_sell_price_trend_1w": "increasing",
+      "target_sell_price_trend_24h": "flat"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:56:23Z",
+      "last_target_sell_price_time": "2025-09-12T19:59:14Z"
+    }
+  },
+  {
+    "item_id": 24587,
+    "name": "Rune pouch note",
+    "last_sell_price": 4599671,
+    "last_buy_price": 4448779,
+    "after_tax_takeaway": 58899,
+    "margin_pct": "3.39",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "8",
+        "at_target_sell_price": "26"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "1",
+        "at_target_sell_price": "12"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "519",
+        "at_target_sell_price": "562"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "147295.03",
+        "target_buy_price": "4439324",
+        "target_sell_price": "4586619"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "108943.67",
+        "target_buy_price": "4448779",
+        "target_sell_price": "4557723"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "152436.52",
+        "target_buy_price": "4411598",
+        "target_sell_price": "4564035"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp increase",
+      "target_buy_price_trend_1w": "sharp increase",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "decreasing",
+      "target_sell_price_trend_1month": "sharp increase",
+      "target_sell_price_trend_1w": "sharp increase",
+      "target_sell_price_trend_24h": "decreasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:50:21Z",
+      "last_target_sell_price_time": "2025-09-12T19:57:53Z"
+    }
+  },
+  {
+    "item_id": 11133,
+    "name": "Regen bracelet",
+    "last_sell_price": 2293707,
+    "last_buy_price": 2221879,
+    "after_tax_takeaway": 25954,
+    "margin_pct": "3.23",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "29",
+        "at_target_sell_price": "40"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "9",
+        "at_target_sell_price": "11"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "442",
+        "at_target_sell_price": "597"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "56956.82",
+        "target_buy_price": "2266935",
+        "target_sell_price": "2323892"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "59671.00",
+        "target_buy_price": "2238597",
+        "target_sell_price": "2298268"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "45930.47",
+        "target_buy_price": "2158513",
+        "target_sell_price": "2204444"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "decreasing",
+      "target_buy_price_trend_1month": "decreasing",
+      "target_buy_price_trend_1w": "sharp increase",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "decreasing",
+      "target_sell_price_trend_1month": "decreasing",
+      "target_sell_price_trend_1w": "sharp increase",
+      "target_sell_price_trend_24h": "increasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:56:13Z",
+      "last_target_sell_price_time": "2025-09-12T19:58:08Z"
+    }
+  },
+  {
+    "item_id": 4714,
+    "name": "Ahrim's robeskirt",
+    "last_sell_price": 1649000,
+    "last_buy_price": 1599229,
+    "after_tax_takeaway": 16791,
+    "margin_pct": "3.11",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "50",
+        "at_target_sell_price": "58"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "11",
+        "at_target_sell_price": "16"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "614",
+        "at_target_sell_price": "723"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "36533.64",
+        "target_buy_price": "1598542",
+        "target_sell_price": "1635075"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "40345.67",
+        "target_buy_price": "1606282",
+        "target_sell_price": "1646627"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "31386.64",
+        "target_buy_price": "1550091",
+        "target_sell_price": "1581478"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "decreasing",
+      "target_buy_price_trend_1w": "sharp increase",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "decreasing",
+      "target_sell_price_trend_1w": "sharp increase",
+      "target_sell_price_trend_24h": "increasing"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:59:36Z",
+      "last_target_sell_price_time": "2025-09-12T19:59:26Z"
+    }
+  },
+  {
+    "item_id": 22557,
+    "name": "Amulet of avarice",
+    "last_sell_price": 701687,
+    "last_buy_price": 681018,
+    "after_tax_takeaway": 6636,
+    "margin_pct": "3.04",
+    "volume_metrics": {
+      "transactions_1h": {
+        "at_target_buy_price": "57",
+        "at_target_sell_price": "53"
+      },
+      "transactions_20m": {
+        "at_target_buy_price": "10",
+        "at_target_sell_price": "6"
+      },
+      "transactions_24h": {
+        "at_target_buy_price": "1279",
+        "at_target_sell_price": "920"
+      }
+    },
+    "price_averages": {
+      "avg_prices_1h": {
+        "margin_gp": "23410.74",
+        "target_buy_price": "680397",
+        "target_sell_price": "703808"
+      },
+      "avg_prices_20m": {
+        "margin_gp": "23706.83",
+        "target_buy_price": "679182",
+        "target_sell_price": "702888"
+      },
+      "avg_prices_24h": {
+        "margin_gp": "25113.25",
+        "target_buy_price": "620623",
+        "target_sell_price": "645737"
+      }
+    },
+    "trend_signals": {
+      "target_buy_price_trend_1h": "flat",
+      "target_buy_price_trend_1month": "sharp increase",
+      "target_buy_price_trend_1w": "sharp increase",
+      "target_buy_price_trend_24h": "flat",
+      "target_sell_price_trend_1h": "increasing",
+      "target_sell_price_trend_1month": "sharp increase",
+      "target_sell_price_trend_1w": "sharp increase",
+      "target_sell_price_trend_24h": "sharp increase"
+    },
+    "last_updated": {
+      "last_target_buy_price_time": "2025-09-12T19:57:34Z",
+      "last_target_sell_price_time": "2025-09-12T19:58:13Z"
+    }
+  }
+]

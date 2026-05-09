@@ -6,7 +6,9 @@
 *.dylib
 osrs-flips
 osrs-flips-bot
-main
+osrs-flips-collector
+/collector
+/main
 
 # Test binary, built with `go test -c`
 *.test
@@ -73,3 +75,6 @@ python/*.json
 python/*.txt
 
 output
+
+# Container image tars
+*.tar

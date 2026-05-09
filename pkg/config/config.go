@@ -76,7 +76,7 @@ type JobModelConfig struct {
 // FilterConfig holds all possible filter parameters
 type FilterConfig struct {
 	// Margin filters
-	MarginMin    *int     `yaml:"margin_min,omitempty"`
+	MarginMin    *int     `yaml:"margin_gp_min,omitempty"`
 	MarginPctMin *float64 `yaml:"margin_pct_min,omitempty"`
 
 	// Price filters
@@ -133,7 +133,7 @@ func LoadConfig(configPath string) (*Config, error) {
 			UserAgent:          "",
 			MaxConcurrentCalls: 3,
 			RateLimitDelayMs:   500,
-			VolumeDataMaxItems: 50,
+			VolumeDataMaxItems: 2500,
 		},
 		Logging: LoggingConfig{
 			Level:  "info",

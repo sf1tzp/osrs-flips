@@ -1,0 +1,57 @@
+# Fluent Bit v2+ YAML pipeline configuration
+# Collects logs from ALL project containers via Docker JSON log files
+# Parses PostgreSQL jsonlog + Go app JSON logs, ships to Loki
+
+service:
+  flush: 1
+  log_level: info
+
+pipeline:
+  inputs:
+    # Tail Docker JSON log files from all containers
+    - name: tail
+      tag: docker.*
+      path: /var/lib/docker/containers/*/*.log
+      multiline.parser: docker, cri
+      refresh_interval: 5
+      read_from_head: false
+      db: /fluent-bit/state/tail-docker.db
+      mem_buf_limit: 10MB
+
+    # Forward input for fluentd logging driver
+    - name: forward
+      listen: 0.0.0.0
+      port: 24224
+      mem_buf_limit: 10MB
+
+  filters:
+    # Parse the Docker JSON wrapper to extract the "log" field
+    - name: parser
+      match: docker.*
+      key_name: log
+      parser: docker
+      reserve_data: true
+
+    # Parse structured JSON from Go apps (logrus format)
+    - name: parser
+      match: docker.*
+      key_name: log
+      parser: json
+      reserve_data: true
+
+    # Extract container name from Docker log path for service label
+    - name: lua
+      match: docker.*
+      script: /fluent-bit/scripts/extract_service.lua
+      call: extract_service
+
+  outputs:
+    # Ship to Loki
+    - name: loki
+      match: "*"
+      host: ${LOKI_HOST}
+      port: ${LOKI_PORT}
+      labels: job=osrs-flips, host=${HOSTNAME}
+      label_keys: $service, $level
+      remove_keys: service, level
+      auto_kubernetes_labels: false
