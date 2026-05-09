@@ -1125,12 +1125,14 @@ func (r *Repository) UpsertSignals(ctx context.Context, signals []Signal) (int64
 		for range chunk {
 			ct, err := br.Exec()
 			if err != nil {
-				br.Close()
+				_ = br.Close()
 				return upserted, fmt.Errorf("batch exec signal upsert: %w", err)
 			}
 			upserted += ct.RowsAffected()
 		}
-		br.Close()
+		if err := br.Close(); err != nil {
+			return upserted, fmt.Errorf("close signal upsert batch: %w", err)
+		}
 	}
 
 	return upserted, nil
