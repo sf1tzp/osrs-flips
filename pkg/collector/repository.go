@@ -235,12 +235,14 @@ func (r *Repository) insertBucketsToTable(ctx context.Context, tableName string,
 		for range chunk {
 			ct, err := br.Exec()
 			if err != nil {
-				br.Close()
+				_ = br.Close()
 				return inserted, fmt.Errorf("batch exec: %w", err)
 			}
 			inserted += ct.RowsAffected()
 		}
-		br.Close()
+		if err := br.Close(); err != nil {
+			return inserted, fmt.Errorf("batch close: %w", err)
+		}
 	}
 
 	return inserted, nil
@@ -314,7 +316,7 @@ func (r *Repository) UpsertItems(ctx context.Context, mappings []osrs.ItemMappin
 	}
 
 	br := r.pool.SendBatch(ctx, batch)
-	defer br.Close()
+	defer func() { _ = br.Close() }()
 
 	var affected int64
 	for range mappings {
@@ -375,9 +377,9 @@ func (r *Repository) SetPollVolume(ctx context.Context, itemIDs []int, pollVolum
 
 // VolumeRatio holds recent vs baseline volume data for an item.
 type VolumeRatio struct {
-	Recent5m  float64
-	Avg24h    float64
-	Ratio     float64
+	Recent5m float64
+	Avg24h   float64
+	Ratio    float64
 }
 
 // GetCompoundedItemIDs returns item IDs that have 2+ active (non-expired) signals.

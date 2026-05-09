@@ -50,7 +50,7 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to Ollama at %s: %w", c.baseURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("ollama returned status %d", resp.StatusCode)
@@ -95,7 +95,7 @@ func (c *Client) Generate(ctx context.Context, config ModelConfig, systemPrompt,
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

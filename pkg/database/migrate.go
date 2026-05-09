@@ -18,7 +18,7 @@ func MigrateUp(databaseURL, migrationsPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
-	defer m.Close()
+	defer func() { _, _ = m.Close() }()
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -36,7 +36,7 @@ func MigrateDown(databaseURL, migrationsPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
-	defer m.Close()
+	defer func() { _, _ = m.Close() }()
 
 	if err := m.Down(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to rollback migrations: %w", err)
@@ -54,7 +54,7 @@ func MigrateVersion(databaseURL, migrationsPath string) (uint, bool, error) {
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to create migrator: %w", err)
 	}
-	defer m.Close()
+	defer func() { _, _ = m.Close() }()
 
 	version, dirty, err := m.Version()
 	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {

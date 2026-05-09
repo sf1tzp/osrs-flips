@@ -413,7 +413,9 @@ func mergePricesWithMappings(prices *LatestPricesResponse, mappings []ItemMappin
 	var items []ItemData
 	for itemIDStr, priceInfo := range prices.Data {
 		var itemID int
-		fmt.Sscanf(itemIDStr, "%d", &itemID)
+		if _, err := fmt.Sscanf(itemIDStr, "%d", &itemID); err != nil {
+			continue
+		}
 
 		mapping, ok := itemMap[itemID]
 		if !ok {
@@ -529,13 +531,13 @@ func process5mData(dataSlice []interface{}, metrics VolumeMetrics) VolumeMetrics
 	window24h := now - (24 * 60 * 60)
 
 	var (
-		instaBuy20m, instaSell20m       []float64
-		instaBuyVol20m, instaSellVol20m float64
-		instaBuy1h, instaSell1h         []float64
-		instaBuyVol1h, instaSellVol1h   float64
-		instaBuy24h, instaSell24h       []float64
-		instaBuyVol24h, instaSellVol24h float64
-		timestamps1h, instaBuyPrices1h, instaSellPrices1h   []float64
+		instaBuy20m, instaSell20m                            []float64
+		instaBuyVol20m, instaSellVol20m                      float64
+		instaBuy1h, instaSell1h                              []float64
+		instaBuyVol1h, instaSellVol1h                        float64
+		instaBuy24h, instaSell24h                            []float64
+		instaBuyVol24h, instaSellVol24h                      float64
+		timestamps1h, instaBuyPrices1h, instaSellPrices1h    []float64
 		timestamps24h, instaBuyPrices24h, instaSellPrices24h []float64
 	)
 

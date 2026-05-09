@@ -11,12 +11,12 @@ import (
 
 // Config holds database connection configuration.
 type Config struct {
-	DatabaseURL  string
-	MaxConns     int32
-	MinConns     int32
-	MaxConnIdle  time.Duration
-	MaxConnLife  time.Duration
-	HealthCheck  time.Duration
+	DatabaseURL string
+	MaxConns    int32
+	MinConns    int32
+	MaxConnIdle time.Duration
+	MaxConnLife time.Duration
+	HealthCheck time.Duration
 }
 
 // DefaultConfig returns a Config with sensible defaults.

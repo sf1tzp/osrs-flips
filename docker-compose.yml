@@ -2,7 +2,7 @@ services:
   collector:
     container_name: osrs-flips-collector
     restart: unless-stopped
-    image: osrs-flips-collector:latest
+    image: ${OSRS_FLIPS_COLLECTOR_IMAGE:-osrs-flips-collector:latest}
     env_file:
       - ~/osrs-flips/.env
     command:
@@ -25,7 +25,7 @@ services:
   ui:
     container_name: osrs-flips-ui
     restart: unless-stopped
-    image: osrs-flips-ui:latest
+    image: ${OSRS_FLIPS_UI_IMAGE:-osrs-flips-ui:latest}
     env_file:
       - ~/osrs-flips/.env
 

@@ -19,20 +19,20 @@ func (of *OutputFormatter) FormatForTerminal(result *JobResult) string {
 	var output strings.Builder
 
 	// Header
-	output.WriteString(fmt.Sprintf("\n🎯 Job Results: %s\n", result.JobName))
+	fmt.Fprintf(&output, "\n🎯 Job Results: %s\n", result.JobName)
 	output.WriteString(strings.Repeat("=", 60) + "\n")
 
 	if !result.Success {
-		output.WriteString(fmt.Sprintf("❌ Job failed: %v\n", result.Error))
+		fmt.Fprintf(&output, "❌ Job failed: %v\n", result.Error)
 		return output.String()
 	}
 
 	// Job info
-	output.WriteString(fmt.Sprintf("📊 Status: Success | Duration: %v | Items: %d\n",
-		result.Duration.Truncate(time.Millisecond), result.ItemsFound))
+	fmt.Fprintf(&output, "📊 Status: Success | Duration: %v | Items: %d\n",
+		result.Duration.Truncate(time.Millisecond), result.ItemsFound)
 
 	if result.JobConfig.Description != "" {
-		output.WriteString(fmt.Sprintf("📝 Description: %s\n", result.JobConfig.Description))
+		fmt.Fprintf(&output, "📝 Description: %s\n", result.JobConfig.Description)
 	}
 
 	output.WriteString("\n")

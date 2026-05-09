@@ -1,73 +1,73 @@
 import { createHash } from 'node:crypto';
 import { sql } from './index';
 import {
-  DEFAULT_SOURCES,
-  type PriceHistoryRange,
-  type PriceHistorySource
+	DEFAULT_SOURCES,
+	type PriceHistoryRange,
+	type PriceHistorySource
 } from '$lib/price-history';
 
 export {
-  PRICE_HISTORY_RANGES,
-  PRICE_HISTORY_SOURCES,
-  SOURCE_OPTIONS,
-  DEFAULT_SOURCES,
-  SOURCE_LABELS
+	PRICE_HISTORY_RANGES,
+	PRICE_HISTORY_SOURCES,
+	SOURCE_OPTIONS,
+	DEFAULT_SOURCES,
+	SOURCE_LABELS
 } from '$lib/price-history';
 export type { PriceHistoryRange, PriceHistorySource } from '$lib/price-history';
 
 const WIKI_IMAGE_BASE = 'https://oldschool.runescape.wiki/images';
 
 export function wikiIconUrl(filename: string): string {
-  const normalized = filename.replaceAll(' ', '_');
-  const hash = createHash('md5').update(normalized).digest('hex');
-  return `${WIKI_IMAGE_BASE}/${hash[0]}/${hash.slice(0, 2)}/${encodeURIComponent(normalized)}`;
+	const normalized = filename.replaceAll(' ', '_');
+	const hash = createHash('md5').update(normalized).digest('hex');
+	return `${WIKI_IMAGE_BASE}/${hash[0]}/${hash.slice(0, 2)}/${encodeURIComponent(normalized)}`;
 }
 
 export interface DashboardItem {
-  itemId: number;
-  name: string;
-  icon: string | null;
-  members: boolean;
-  buyLimit: number | null;
-  highAlch: number | null;
-  highPrice: number | null;
-  lowPrice: number | null;
-  margin: number | null;
-  marginPct: number | null;
-  volume24h: number | null;
+	itemId: number;
+	name: string;
+	icon: string | null;
+	members: boolean;
+	buyLimit: number | null;
+	highAlch: number | null;
+	highPrice: number | null;
+	lowPrice: number | null;
+	margin: number | null;
+	marginPct: number | null;
+	volume24h: number | null;
 }
 
 const RANGE_INTERVALS: Record<PriceHistoryRange, string> = {
-  '1h': '1 hour',
-  '6h': '6 hours',
-  '24h': '24 hours',
-  '7d': '7 days',
-  '30d': '30 days',
-  '3m': '3 months',
-  '6m': '6 months',
-  '1y': '1 year',
-  '5y': '5 years'
+	'1h': '1 hour',
+	'6h': '6 hours',
+	'24h': '24 hours',
+	'7d': '7 days',
+	'30d': '30 days',
+	'3m': '3 months',
+	'6m': '6 months',
+	'1y': '1 year',
+	'5y': '5 years'
 };
 
 export interface PriceHistoryPoint {
-  time: string;
-  highPrice: number | null;
-  lowPrice: number | null;
-  highVolume: number | null;
-  lowVolume: number | null;
+	time: string;
+	highPrice: number | null;
+	lowPrice: number | null;
+	highVolume: number | null;
+	lowVolume: number | null;
 }
 
 export async function getPriceHistory(
-  itemId: number,
-  range: PriceHistoryRange,
-  source?: PriceHistorySource
+	itemId: number,
+	range: PriceHistoryRange,
+	source?: PriceHistorySource
 ): Promise<PriceHistoryPoint[]> {
-  const effectiveSource = source ?? DEFAULT_SOURCES[range];
-  const interval = RANGE_INTERVALS[range];
-  let rows;
+	const effectiveSource = source ?? DEFAULT_SOURCES[range];
+	const interval = RANGE_INTERVALS[range];
+	let rows;
 
-  if (effectiveSource === 'observations') {
-    rows = await sql`
+	if (effectiveSource === 'observations') {
+		rows = await sql`
 			SELECT
 				observed_at AS time,
 				high_price,
@@ -79,8 +79,8 @@ export async function getPriceHistory(
 				AND observed_at >= NOW() - ${interval}::interval
 			ORDER BY observed_at
 		`;
-  } else if (effectiveSource === '5m') {
-    rows = await sql`
+	} else if (effectiveSource === '5m') {
+		rows = await sql`
 			SELECT
 				bucket_start AS time,
 				avg_high_price AS high_price,
@@ -92,8 +92,8 @@ export async function getPriceHistory(
 				AND bucket_start >= NOW() - ${interval}::interval
 			ORDER BY bucket_start
 		`;
-  } else if (effectiveSource === '1h') {
-    rows = await sql`
+	} else if (effectiveSource === '1h') {
+		rows = await sql`
 			SELECT
 				bucket_start AS time,
 				avg_high_price AS high_price,
@@ -105,8 +105,8 @@ export async function getPriceHistory(
 				AND bucket_start >= NOW() - ${interval}::interval
 			ORDER BY bucket_start
 		`;
-  } else {
-    rows = await sql`
+	} else {
+		rows = await sql`
 			SELECT
 				bucket_start AS time,
 				avg_high_price AS high_price,
@@ -118,74 +118,74 @@ export async function getPriceHistory(
 				AND bucket_start >= NOW() - ${interval}::interval
 			ORDER BY bucket_start
 		`;
-  }
+	}
 
-  return rows.map((r) => ({
-    time: r.time instanceof Date ? r.time.toISOString() : String(r.time),
-    highPrice: r.high_price as number | null,
-    lowPrice: r.low_price as number | null,
-    highVolume: r.high_volume != null ? Number(r.high_volume) : null,
-    lowVolume: r.low_volume != null ? Number(r.low_volume) : null
-  }));
+	return rows.map((r) => ({
+		time: r.time instanceof Date ? r.time.toISOString() : String(r.time),
+		highPrice: r.high_price as number | null,
+		lowPrice: r.low_price as number | null,
+		highVolume: r.high_volume != null ? Number(r.high_volume) : null,
+		lowVolume: r.low_volume != null ? Number(r.low_volume) : null
+	}));
 }
 
 export interface DataGap {
-  start: string;
-  end: string;
-  durationMs: number;
-  missingCount: number;
+	start: string;
+	end: string;
+	durationMs: number;
+	missingCount: number;
 }
 
 export interface BucketCoverage {
-  bucket: string;
-  retention: string;
-  oldest: string | null;
-  newest: string | null;
-  totalBuckets: number;
-  expectedBuckets: number;
-  gaps: DataGap[];
+	bucket: string;
+	retention: string;
+	oldest: string | null;
+	newest: string | null;
+	totalBuckets: number;
+	expectedBuckets: number;
+	gaps: DataGap[];
 }
 
 const BUCKET_CONFIGS = [
-  {
-    name: '5m',
-    table: 'price_buckets_5m',
-    interval: '5 minutes',
-    seconds: 300,
-    retention: '7d'
-  },
-  {
-    name: '1h',
-    table: 'price_buckets_1h',
-    interval: '1 hour',
-    seconds: 3600,
-    retention: '1y'
-  },
-  {
-    name: '24h',
-    table: 'price_buckets_24h',
-    interval: '24 hours',
-    seconds: 86400,
-    retention: '5y'
-  }
+	{
+		name: '5m',
+		table: 'price_buckets_5m',
+		interval: '5 minutes',
+		seconds: 300,
+		retention: '7d'
+	},
+	{
+		name: '1h',
+		table: 'price_buckets_1h',
+		interval: '1 hour',
+		seconds: 3600,
+		retention: '1y'
+	},
+	{
+		name: '24h',
+		table: 'price_buckets_24h',
+		interval: '24 hours',
+		seconds: 86400,
+		retention: '5y'
+	}
 ] as const;
 
 async function getBucketCoverage(
-  itemId: number,
-  config: (typeof BUCKET_CONFIGS)[number]
+	itemId: number,
+	config: (typeof BUCKET_CONFIGS)[number]
 ): Promise<BucketCoverage> {
-  const [summary, gapRows] = await Promise.all([
-    sql.unsafe(
-      `SELECT
+	const [summary, gapRows] = await Promise.all([
+		sql.unsafe(
+			`SELECT
 				MIN(bucket_start) as oldest,
 				MAX(bucket_start) as newest,
 				COUNT(*)::int as total
 			FROM ${config.table}
 			WHERE item_id = $1`,
-      [itemId]
-    ),
-    sql.unsafe(
-      `WITH ordered AS (
+			[itemId]
+		),
+		sql.unsafe(
+			`WITH ordered AS (
 				SELECT
 					bucket_start,
 					LEAD(bucket_start) OVER (ORDER BY bucket_start) as next_start
@@ -200,61 +200,61 @@ async function getBucketCoverage(
 				AND next_start - bucket_start > $2::interval
 			ORDER BY bucket_start DESC
 			LIMIT 50`,
-      [itemId, config.interval]
-    )
-  ]);
+			[itemId, config.interval]
+		)
+	]);
 
-  const row = summary[0];
-  const oldest = row.oldest ? new Date(row.oldest).toISOString() : null;
-  const newest = row.newest ? new Date(row.newest).toISOString() : null;
-  const totalBuckets = row.total as number;
+	const row = summary[0];
+	const oldest = row.oldest ? new Date(row.oldest).toISOString() : null;
+	const newest = row.newest ? new Date(row.newest).toISOString() : null;
+	const totalBuckets = row.total as number;
 
-  let expectedBuckets = 0;
-  if (oldest && newest) {
-    const rangeMs = new Date(newest).getTime() - new Date(oldest).getTime();
-    expectedBuckets = Math.floor(rangeMs / (config.seconds * 1000)) + 1;
-  }
+	let expectedBuckets = 0;
+	if (oldest && newest) {
+		const rangeMs = new Date(newest).getTime() - new Date(oldest).getTime();
+		expectedBuckets = Math.floor(rangeMs / (config.seconds * 1000)) + 1;
+	}
 
-  const gaps: DataGap[] = gapRows.map((g) => {
-    const start = new Date(g.gap_start).toISOString();
-    const end = new Date(g.gap_end).toISOString();
-    const durationMs = new Date(end).getTime() - new Date(start).getTime();
-    const missingCount = Math.round(durationMs / (config.seconds * 1000));
-    return { start, end, durationMs, missingCount };
-  });
+	const gaps: DataGap[] = gapRows.map((g) => {
+		const start = new Date(g.gap_start).toISOString();
+		const end = new Date(g.gap_end).toISOString();
+		const durationMs = new Date(end).getTime() - new Date(start).getTime();
+		const missingCount = Math.round(durationMs / (config.seconds * 1000));
+		return { start, end, durationMs, missingCount };
+	});
 
-  return {
-    bucket: config.name,
-    retention: config.retention,
-    oldest,
-    newest,
-    totalBuckets,
-    expectedBuckets,
-    gaps
-  };
+	return {
+		bucket: config.name,
+		retention: config.retention,
+		oldest,
+		newest,
+		totalBuckets,
+		expectedBuckets,
+		gaps
+	};
 }
 
 export async function getItemDataCoverage(itemId: number): Promise<BucketCoverage[]> {
-  return Promise.all(BUCKET_CONFIGS.map((config) => getBucketCoverage(itemId, config)));
+	return Promise.all(BUCKET_CONFIGS.map((config) => getBucketCoverage(itemId, config)));
 }
 
 export interface ActiveSignal {
-  itemId: number;
-  itemName: string;
-  itemIcon: string | null;
-  signalType: string;
-  score: number;
-  metadata: Record<string, unknown>;
-  highPrice: number | null;
-  lowPrice: number | null;
-  margin: number | null;
-  buyLimit: number | null;
-  volume24h: number | null;
-  createdAt: string;
+	itemId: number;
+	itemName: string;
+	itemIcon: string | null;
+	signalType: string;
+	score: number;
+	metadata: Record<string, unknown>;
+	highPrice: number | null;
+	lowPrice: number | null;
+	margin: number | null;
+	buyLimit: number | null;
+	volume24h: number | null;
+	createdAt: string;
 }
 
 export async function getSignalsForItem(itemId: number): Promise<ActiveSignal[]> {
-  const rows = await sql`
+	const rows = await sql`
     SELECT
       s.item_id,
       i.name,
@@ -285,24 +285,24 @@ export async function getSignalsForItem(itemId: number): Promise<ActiveSignal[]>
     ORDER BY s.score DESC
   `;
 
-  return rows.map((r) => ({
-    itemId: r.item_id as number,
-    itemName: r.name as string,
-    itemIcon: r.icon ? wikiIconUrl(r.icon as string) : null,
-    signalType: r.signal_type as string,
-    score: Number(r.score),
-    metadata: (r.metadata ?? {}) as Record<string, unknown>,
-    highPrice: r.high_price as number | null,
-    lowPrice: r.low_price as number | null,
-    margin: r.margin != null ? Number(r.margin) : null,
-    buyLimit: r.buy_limit as number | null,
-    volume24h: r.volume_24h != null ? Number(r.volume_24h) : null,
-    createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at)
-  }));
+	return rows.map((r) => ({
+		itemId: r.item_id as number,
+		itemName: r.name as string,
+		itemIcon: r.icon ? wikiIconUrl(r.icon as string) : null,
+		signalType: r.signal_type as string,
+		score: Number(r.score),
+		metadata: (r.metadata ?? {}) as Record<string, unknown>,
+		highPrice: r.high_price as number | null,
+		lowPrice: r.low_price as number | null,
+		margin: r.margin != null ? Number(r.margin) : null,
+		buyLimit: r.buy_limit as number | null,
+		volume24h: r.volume_24h != null ? Number(r.volume_24h) : null,
+		createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at)
+	}));
 }
 
 export async function getActiveSignals(): Promise<ActiveSignal[]> {
-  const rows = await sql`
+	const rows = await sql`
     SELECT
       s.item_id,
       i.name,
@@ -332,24 +332,24 @@ export async function getActiveSignals(): Promise<ActiveSignal[]> {
     ORDER BY s.score DESC
   `;
 
-  return rows.map((r) => ({
-    itemId: r.item_id as number,
-    itemName: r.name as string,
-    itemIcon: r.icon ? wikiIconUrl(r.icon as string) : null,
-    signalType: r.signal_type as string,
-    score: Number(r.score),
-    metadata: (r.metadata ?? {}) as Record<string, unknown>,
-    highPrice: r.high_price as number | null,
-    lowPrice: r.low_price as number | null,
-    margin: r.margin != null ? Number(r.margin) : null,
-    buyLimit: r.buy_limit as number | null,
-    volume24h: r.volume_24h != null ? Number(r.volume_24h) : null,
-    createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at)
-  }));
+	return rows.map((r) => ({
+		itemId: r.item_id as number,
+		itemName: r.name as string,
+		itemIcon: r.icon ? wikiIconUrl(r.icon as string) : null,
+		signalType: r.signal_type as string,
+		score: Number(r.score),
+		metadata: (r.metadata ?? {}) as Record<string, unknown>,
+		highPrice: r.high_price as number | null,
+		lowPrice: r.low_price as number | null,
+		margin: r.margin != null ? Number(r.margin) : null,
+		buyLimit: r.buy_limit as number | null,
+		volume24h: r.volume_24h != null ? Number(r.volume_24h) : null,
+		createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at)
+	}));
 }
 
 export async function getDashboardItems(): Promise<DashboardItem[]> {
-  const rows = await sql`
+	const rows = await sql`
 		WITH latest_prices AS (
 			SELECT DISTINCT ON (item_id)
 				item_id,
@@ -390,17 +390,17 @@ export async function getDashboardItems(): Promise<DashboardItem[]> {
 		ORDER BY i.name
 	`;
 
-  return rows.map((r) => ({
-    itemId: r.item_id as number,
-    name: r.name as string,
-    icon: r.icon ? wikiIconUrl(r.icon as string) : null,
-    members: r.members as boolean,
-    buyLimit: r.buy_limit as number | null,
-    highAlch: r.high_alch as number | null,
-    highPrice: r.high_price as number | null,
-    lowPrice: r.low_price as number | null,
-    margin: r.margin as number | null,
-    marginPct: r.margin_pct !== null ? Number(r.margin_pct) : null,
-    volume24h: r.total_volume != null ? Number(r.total_volume) : null
-  }));
+	return rows.map((r) => ({
+		itemId: r.item_id as number,
+		name: r.name as string,
+		icon: r.icon ? wikiIconUrl(r.icon as string) : null,
+		members: r.members as boolean,
+		buyLimit: r.buy_limit as number | null,
+		highAlch: r.high_alch as number | null,
+		highPrice: r.high_price as number | null,
+		lowPrice: r.low_price as number | null,
+		margin: r.margin as number | null,
+		marginPct: r.margin_pct !== null ? Number(r.margin_pct) : null,
+		volume24h: r.total_volume != null ? Number(r.total_volume) : null
+	}));
 }

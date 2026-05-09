@@ -12,10 +12,10 @@ import (
 
 // PollerConfig configures the polling service.
 type PollerConfig struct {
-	Interval    time.Duration // Polling interval (default: 60s)
-	RetryDelay  time.Duration // Delay between retries on failure (default: 10s)
-	MaxRetries  int           // Max consecutive failures before backing off (default: 5)
-	BackoffMax  time.Duration // Maximum backoff duration (default: 5m)
+	Interval   time.Duration // Polling interval (default: 60s)
+	RetryDelay time.Duration // Delay between retries on failure (default: 10s)
+	MaxRetries int           // Max consecutive failures before backing off (default: 5)
+	BackoffMax time.Duration // Maximum backoff duration (default: 5m)
 }
 
 // DefaultPollerConfig returns sensible defaults.
@@ -35,9 +35,9 @@ type Poller struct {
 	config *PollerConfig
 	logger *logging.Logger
 
-	mu              sync.Mutex
-	running         bool
-	stopCh          chan struct{}
+	mu               sync.Mutex
+	running          bool
+	stopCh           chan struct{}
 	consecutiveFails int
 }
 

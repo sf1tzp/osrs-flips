@@ -167,7 +167,7 @@ func loadYAMLFile(path string, config *Config) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
